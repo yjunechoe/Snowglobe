@@ -1,0 +1,208 @@
+
+
+# -- SETUP --
+
+
+## Run the below chunk for setup (REQUIRED: paper.db, screened.csv, internet connection)
+
+```{r setup, message=FALSE, warning=FALSE}
+# load packages
+library(tidyverse)
+library(skimr)
+library(microdemic)
+library(RSQLite)
+library(DBI)
+
+# set API key
+Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
+
+# connect to database (paper.db file)
+con <- dbConnect(RSQLite::SQLite(),"./paper.db")
+
+# backward search (references)
+backward.search <- function(ID){
+  rs <- dbSendQuery(con,paste("select paperid, refid from refs where paperid in (",paste(ID,collapse=","),")"))
+  rename(fetch(rs, -1), Backward_References = refid, ID = paperid) %>% select(Backward_References, ID)
+}
+# forward search (citations)
+forward.search <- function(ID){
+  rs <- dbSendQuery(con,paste("select paperid, refid from refs where refid in (",paste(ID,collapse=","),")"))
+  rename(fetch(rs, -1), ID = refid, Forward_Citations = paperid) %>% select(ID, Forward_Citations)
+}
+
+# scraping function
+scrape <- function(ID) {
+  article <- ma_evaluate(query = paste('Id=', ID, sep=''),
+                         atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC"))
+  if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
+}
+
+# Load screened IDs
+screened <- read_csv('screened.csv')
+
+```
+
+## Enter in the paper(s) you want to backward/forward search
+
+```{r input}
+input <- c(1964141474) #ARTICLE IDs GO HERE
+
+input %in% as.numeric(unlist(str_split(paste(screened$Searched_from, collapse = ", "), ", ")))
+```
+
+
+# -- SEARCH --
+
+
+## Snowball search
+
+```{r backward_forward, warning=FALSE}
+b.data <- backward.search(input)
+f.data <- forward.search(input)
+found <- unique(c(as.numeric(b.data$Backward_References), as.numeric(f.data$Forward_Citations)))
+
+print(paste("Papers found from backward search:", nrow(b.data)))
+print(paste("Papers found from forward search:", nrow(f.data)))
+print(paste("Total # of unique papers found:", length(found)))
+```
+
+## Remove articles that have already been screened
+
+```{r remove_screened}
+already_screened <- found[found %in% screened$ID]
+found <- found[!found %in% screened$ID]
+
+print(paste("Total # of unique papers found that haven't been screened already:", length(found)))
+```
+
+## Fetch article information
+
+```{r database_search, message=FALSE, warning=FALSE}
+iteration_data <- tibble(Id = numeric(), Ti = character(), Pt = character(), Y = numeric(),
+                         CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
+for (ID in found) {
+  df <- scrape(ID)
+  df$RId <- length(df$RId[[1]])
+  df$J.JN <- paste(unlist(df$J.JN), collapse = ', ')
+  df$AA <- paste(unlist(df$AA), collapse = ', ')
+  iteration_data <- bind_rows(iteration_data, df)
+}
+
+iteration_data <- iteration_data %>% 
+  rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
+         Pub_type = Pt, Citations_count = CC, References_count = RId) %>% 
+  select(ID, Title, Year, Authors, Journal, Pub_type, Citations_count, References_count)
+
+searched <- iteration_data$ID
+searched <- searched[!is.na(searched)]
+
+abstracts <- tibble(Id = numeric(), abstract = character())
+for (ID in found){
+  abst <- ma_abstract(query = paste("Id=", ID, sep = ""))
+  abstracts <- bind_rows(abstracts, abst)
+}
+abstracts <- abstracts %>% rename(ID = Id, Abstract = abstract)
+
+iteration_data <- inner_join(iteration_data, abstracts, by = 'ID') -> iteration_data_original
+
+print(paste("# of papers whose information were fetched from database:", nrow(iteration_data)))
+print(paste("# of papers whose information couldn't be fetched from database:",
+            length(found) - nrow(iteration_data)))
+```
+
+## Filter to keep only journal articles
+
+```{r filter}
+count(group_by(iteration_data, Pub_type)) # run this first if you want to check Pub_type distribution
+
+iteration_data <- filter(iteration_data, Pub_type == 1) # can change to filter other types
+```
+
+## Descriptive stats of the final list of papers
+
+```{r summary, message=FALSE, warning=FALSE}
+# Data
+backwards_data <- filter(iteration_data, ID %in% as.numeric(b.data$Backward_References)) %>% 
+  mutate(type = "backward")
+forwards_data <- filter(iteration_data, ID %in% as.numeric(f.data$Forward_Citations)) %>% 
+  mutate(type = "forward")
+searched_data <- rbind(backwards_data, forwards_data)
+overlap <- searched_data[duplicated(select(searched_data, -type)),]
+searched_data <- searched_data[!duplicated(select(searched_data, -type)),]
+if (nrow(overlap) > 0){searched_data[searched_data$ID %in% overlap$ID,]$type = "both"}
+
+# Overall summary
+skim_with(numeric = list(hist = NULL), integer = list(hist = NULL))
+skim(mutate(iteration_data, ID = as.character(ID), Journal = as.factor(Journal), Pub_type = as.factor(Pub_type)))
+
+# Year summary
+input_data <- tibble(Id = numeric(), Ti = character(), Pt = character(), Y = numeric(),
+                     CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
+for (ID in input) {
+  df <- scrape(ID)
+  df$RId <- length(df$RId[[1]])
+  df$J.JN <- paste(unlist(df$J.JN), collapse = ', ')
+  df$AA <- paste(unlist(df$AA), collapse = ', ')
+  input_data <- bind_rows(input_data, df)
+}
+input_data <- rename(input_data, Year = Y)
+
+ggplot(searched_data, aes(x = Year, fill = type)) +
+  geom_rect(data = input_data,
+            aes(xmin = min(Year), xmax = max(Year), ymin = 0, ymax = Inf),
+            fill = "skyblue", alpha = 0.1, show.legend = FALSE) +
+  geom_histogram(bins = 25, color = 'white') +
+  scale_x_continuous(breaks = seq(min(searched_data$Year), max(searched_data$Year), 10)) +
+  labs(title = "Year Data", y = "Articles Found", fill = "Search Type") +
+  geom_vline(aes(xintercept = median(input_data$Year)), linetype = 2) + 
+  scale_fill_grey() + theme_bw()
+
+# Author summary
+author_data <- tibble(author = unlist(mutate(iteration_data, Authors = str_split(Authors, ', '))$Authors))
+author_data <- group_by(author_data, author) %>% count() %>% arrange(desc(n))
+
+author_plot <- author_data[1:min(25,nrow(author_data)),]
+ggplot(author_plot, aes(x = fct_reorder(author, desc(n)), y = n)) +
+  geom_col(color = 'white') +
+  labs(title = "Author Data", x = 'Authors (Top 25)', y = "Count") +
+  coord_flip() + theme_bw()
+
+# Journal summary
+journal_data <- searched_data %>%
+  group_by(Journal) %>% count() %>%
+  arrange(desc(n))
+
+journal_plot <- journal_data[1:min(25,nrow(journal_data)),]
+ggplot(journal_plot, aes(x = fct_reorder(Journal, desc(n)), y = n)) +
+  geom_col(color = 'white') +
+  labs(title = "Journal Data", x = 'Journals (Top 25)', y = "Count") +
+  coord_flip() + theme_bw()
+```
+
+
+# -- WRITE --
+
+
+## Write iteration_data to csv
+
+```{r output}
+iteration_data <- as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
+                                  Searched_from = paste(input, collapse = ", "),
+                                  iteration_data))
+write_csv(iteration_data, paste0("Search_Output_", format(Sys.time(), "%Y_%m_%d_%H_%M"), ".csv"))
+```
+
+## Update screened IDs*
+
+```{r update_screened, message=FALSE, warning=FALSE}
+write_csv(rbind(screened, iteration_data), "screened.csv")
+print(paste("Total # of new papers found from this search:", nrow(iteration_data)))
+print(paste("Total # of papers screened for this project so far:", nrow(read_csv("screened.csv"))))
+```
+
+## Disconnect from database
+
+```{r db_disconnect}
+dbDisconnect(con)
+```
+
