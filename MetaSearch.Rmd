@@ -32,7 +32,7 @@ forward.search <- function(ID){
 
 # scraping function
 scrape <- function(ID) {
-  article <- ma_evaluate(query = paste('Id=', ID, sep=''),
+  article <- ma_evaluate(query = paste0('Id=', ID),
                          atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC"))
   if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
 }
@@ -47,7 +47,7 @@ screened <- read_csv('screened.csv')
 ```{r input}
 input <- c(1964141474) #ARTICLE IDs GO HERE
 
-input %in% as.numeric(unlist(str_split(paste(screened$Searched_from, collapse = ", "), ", ")))
+input %in% str_split(paste(screened$Searched_from, collapse = ", "), ", ")
 ```
 
 
@@ -72,7 +72,7 @@ print(paste("Total # of unique papers found:", length(found)))
 already_screened <- found[found %in% screened$ID]
 found <- found[!found %in% screened$ID]
 
-print(paste("Total # of unique papers found that haven't been screened already:", length(found)))
+print(paste("Total # of unique papers found that haven't been searched already:", length(found)))
 ```
 
 ## Fetch article information
@@ -83,7 +83,6 @@ iteration_data <- tibble(Id = numeric(), Ti = character(), Pt = character(), Y =
 for (ID in found) {
   df <- scrape(ID)
   df$RId <- length(df$RId[[1]])
-  df$J.JN <- paste(unlist(df$J.JN), collapse = ', ')
   df$AA <- paste(unlist(df$AA), collapse = ', ')
   iteration_data <- bind_rows(iteration_data, df)
 }
@@ -97,10 +96,7 @@ searched <- iteration_data$ID
 searched <- searched[!is.na(searched)]
 
 abstracts <- tibble(Id = numeric(), abstract = character())
-for (ID in found){
-  abst <- ma_abstract(query = paste("Id=", ID, sep = ""))
-  abstracts <- bind_rows(abstracts, abst)
-}
+for (ID in found){abstracts <- bind_rows(abstracts, ma_abstract(query = paste0("Id=", ID)))}
 abstracts <- abstracts %>% rename(ID = Id, Abstract = abstract)
 
 iteration_data <- inner_join(iteration_data, abstracts, by = 'ID') -> iteration_data_original
