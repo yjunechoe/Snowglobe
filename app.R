@@ -1,5 +1,5 @@
 #options(warn=-1)
-source('snowballer_source.R')
+source('app_source/snowballer_source.R')
 
 library(shiny)
 library(DT)
@@ -66,7 +66,7 @@ ui <- fluidPage(
                                  plotOutput("plot_journal")
                         ),
                         tabPanel("Manual",
-                                 includeMarkdown("snowballer_manual.Rmd")
+                                 includeMarkdown("app_source/snowballer_manual.Rmd")
                         )
             )
         )
@@ -181,6 +181,7 @@ server <- function(input, output) {
     
     ## overall summary
     output$skim <- renderPrint({
+        showModal(modalDialog("Summarizing...", footer=NULL))
         skim_with(numeric = list(hist = NULL), integer = list(hist = NULL))
         skim(mutate(output_data(),
                     ID = as.factor(ID),
@@ -226,6 +227,7 @@ server <- function(input, output) {
         journal_data()[1:min(15,nrow(journal_data())),]
     })
     output$plot_journal <- renderPlot({
+        removeModal()
         ggplot(journal_plot_data(), aes(x = fct_reorder(Journal, desc(n)), y = n)) +
             geom_col(color = 'white') +
             labs(title = "Journal Data", x = 'Journals (Top 15)', y = "Count") +
