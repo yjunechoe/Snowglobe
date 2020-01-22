@@ -1,17 +1,12 @@
+_Legal disclaimer goes here_
+
+# Snowballer Manual
+### June Choe (jchoe001@gmail.com)
+#### January 2020
+
+
 ---
-title: "MetaSearch Manual"
-author: "June Choe (yongchoe2020@u.northwestern.edu)"
-date: "January 2020"
-output:
-  html_document:
-    highlight: tango
-    toc: yes
-    toc_float: no
-  word_document:
-    toc: yes
-  pdf_document:
-    toc: yes
----
+
 
 # Introduction
 
@@ -21,437 +16,104 @@ output:
 
 ---
 
-The `MetaSearch.Rmd` Script is designed to be a user-friendly interface for doing forward/backward (snowball) searches on academic papers using the **Microsoft Academic** database. It uses markdown layout with **chunks** of code representing the key steps in the search process. You can either run the entire thing top-down or take advantage of the modularity.
+**Snowballer** is an app that runs forward (citations) and backward (references) searches for a given list of papers and fetches information about the searched papers using [Microsoft Academic](https://www.microsoft.com/en-us/research/project/academic/).
 
-Papers are searched using their IDs on  Microsoft Academic. If you don't know the ID of the paper you want to do a search on, you can manually look up the paper on their website https://academic.microsoft.com/home. If you find the paper you're looking for on the Microsoft Academic database, the paper's ID can be found in the URL of the page after **/paper/** (e.g., the paper at the URL https://academic.microsoft.com/paper/2170716495/... has the ID _2170716495_)
-
----
-
-## What you need
+Papers are searched using the IDs that they are assigned in the database. The ID of a paper can be found by looking up the paper online on the [Microsoft Academic database](https://academic.microsoft.com/home). If the paper exists in the databse, its ID can be found in the page that contains information about the paper after `paper/` in the URL. For example, the paper at the url `https://academic.microsoft.com/paper/2170716495/...` has the ID _2170716495_.
 
 ---
 
-In the same folder as the `MetaSearch.Rmd` script, you need two files:
-
-- `paper.db`: the ~75GB database file which holds information about citations between all papers stored in Microsoft Academic up to December 5, 2019
-- `screened.csv`: a running list of all paper IDs that have been screened (automatically + manually) so far.
-
-You also need **internet connection** so that the script can make queries to the Microsoft Academic database.
+## Setup
 
 ---
 
-## What the script outputs
+To query the online database, you need Microsoft's Academic Knowledge API key. The API key permits you to 10,000 transactions (papers fetched online) a day. [Sign up for an API key here.](https://msr-apis.portal.azure-api.net/signup) After signing in, you can [find your API key here](https://msr-apis.portal.azure-api.net/) under the KEYS tab.
+
+You also want to prepare a running list of articles that have been searched/screened so far in the project, named `screened.csv`, with 11 fields:
+
+- `Date` : the time that the snowball search was conducted
+- `Searched_from` : the paper(s) that were passed in as input for the snowball search
+- `ID` : paper's ID
+- `Title` : paper's title
+- `Year` : year of publication
+- `Authors` : list of authors, separated by commas
+- `Journal` : journal that the paper was published in
+- `Pub_type` : type of publication 
+- `Citations` : number of citations
+- `References` : number of references
+- `Abstract` : paper's abstract
+
+The first two colums: `Date` and `Searched_from` are metadata about the search that Snowballer appends to the output result, but it needs those columns to be initialized in the input file to do that. The rest of the columns are the information that Snowballer returns for each paper it finds from the snowball search.
+
+--- 
+
+## Walkthrough
 
 ---
 
-The script returns two files:
-
-First, `search_output.csv`, with 11 fields:
-
-- **Date** : the time that the search was conducted
-- **Searched_from** : the paper(s) that were passed in as input for the current search
-- **ID** : paper's ID
-- **Title** : paper's title
-- **Year** : year of publication
-- **Authors** : list of authors, separated by commas
-- **Journal** : journal that the paper was published in
-- **Pub_type** : type of publication (all output are **1** by default, meaning journal articles, but you can change to include others)
-- **Citations_count** : number of times a paper has been cited (# of papers found in forward search)
-- **References_count** : number of papers in the references (# of papers found in backward search)
-- **Abstract** : paper's abstract
-
-Second, `screened.csv`:
-
-This is the list of the ID of papers that have been screened so far in this project. After every search, the result of the search is appended to this file. This process of updating the list of papers searched and found allows future searches to avoid returning papers that have been searched before, so that we don't screen the same paper multiple times.
+### Sidebar Panel
 
 ---
 
-## Other things to note
+The input fields and action buttons in the sidebar panel are layed out in order from top to bottom.
+
+Descriptions are provided in the image below:
+
+![](manual_images/sidebar_panel.png)
 
 ---
 
-- The script is limited to **10,000 queries a day**. The script queries the database, which imposes a limit on the number of queries you can make so that people don't overload the server. If you'd like to do more searches, you can get your own API key and replace that with mine in the script after you've reached the limit. The `{remove_screened}` chunk, which is right before the `{database_search}` chunk, tells you roughly how many papers that have been searched will be queries for their information.
+### **Summary** Tab
 
 ---
 
-## Useful links
+Once you type in the paper ID, the **Summary** tab automatically updates with information about citation connections.
+
+Here, a paper with the ID _1964141474_ (Norton et al. 2015) is snowballed.
+
+![](manual_images/summary_tab_1.png)
+
+Here's another example, this time with 3 IDs: _1964141474_, _2104332169_, _1988500810_.
+
+In this example, _1988500810_ has already been snowballed and recorded in the `screened.csv` file that is read in.
+
+![](manual_images/summary_tab_2.png)
 
 ---
 
-api server - https://msr-apis.portal.azure-api.net/
-
-paper entity attributes - https://docs.microsoft.com/en-us/azure/cognitive-services/academic-knowledge/paperentityattributes
-
-query syntax - https://docs.microsoft.com/en-us/azure/cognitive-services/academic-knowledge/queryexpressionsyntax 
-
-ma_evalate() documentation - https://docs.ropensci.org/microdemic/reference/ma_evaluate.html 
+### **Input/Output** Tab
 
 ---
 
-# Walkthrough of code chunks
+After you click the **Run Search** button, you can proceed to the **Input Data** and the **Output Data** tabs to retrieve information about the papers you passed in and, more importantly, the result of the snowball search.
+
+Below displays the **Input Data** tab after running a snowball search on _1964141474_. This is useful for double checking that the paper ID you ran the search on is indeed the paper you meant to snowball.
+
+![](manual_images/input_tab.png)
+
+The results in the **Output Data** has the same format, except with more papers.
 
 ---
 
----
-
-## SETUP section
+### **Search Statistics** Tab
 
 ---
 
----
+After running the search, you can also look at some basic statistics about the search.
 
-### `{setup}`
+The **Search Statistics** tab includes a comprehensive skim summary and visualizes the distribution of years, authors, and journals of the papers returned in the **Output Data** tab.
 
----
+The graphs are simple, but the skim summary takes a bit to process. You mainly want to focus on the number of observations, the number of missing abstracts, and the number of journal articles (Pub_type == 1), boxed in the image below in that order.
 
-_(You don't have to change anything, so just run this chunk.)_
+![](manual_images/summary_data.png)
 
-This sets up everything. Run this once at the start of the session.
-
----
-
-### `{input}`
+**NOTE**: Sometimes, the number of papers that are searched from the summary tab don't match the number of papers that are returned. That's is the case in this example, where we expected to get 138 papers but ended up with 137. This is a problem with the Microsoft Academic database assigning a paper an ID, but not storing any information about that paper that could be fetched.
 
 ---
 
-This is where you put in the paper(s) that you want to run forward/backward searches on. Just copy paste paper IDs inside the `c()` function. If you want to search multiple papers at once, just separate the paper IDs by commas, like `c(1598851216, 1583314545, 2537053485)`.
-
-Just to make sure, this chunk also checks whether the paper(s) that you're about to do a search with have already been screened before.
-
-(**NOTE**: If you also want to make sure that the paper ID(s) you're putting in are actually the papers that you want to do a search on, you can call the `scrape()` function on them in the console (1 at a time) to check that the paper IDs are indeed the IDs of the papers you want to search.)
-
-This chunk returns `True` or `False`. If it returns `True` for any of the paper(s), exclude them and update the input.
+## The End
 
 ---
 
-## SEARCH section
+For now.
 
----
-
----
-
-### `{backward_forward}`
-
----
-
-_(You don't have to change anything, so just run this chunk.)_
-
-Runs backward and forward searches on the paper(s) given in the input, using the paper.db database. This takes a minute or two.
-
-The results from backward search are stored in `b.data` and the results from forward search are stored in `f.data`. The IDs of all papers from forward and backward search are stored in `found`. 
-
-This chunk returns the number of papers found from the search.
-
----
-
-### `{remove_screened}`
-
----
-
-_(You don't have to change anything, so just run this chunk.)_
-
-This uses the list of papers that have already been screened from `screened.csv` to check whether there are any duplicates in the papers that we have found. If there are any duplicates, `found` is updated to exclude them. The papers we have left after this process are the truly new papers we found from the papers given as the input.
-
-This chunk returns the final number of papers whose information will be fetched online in the next chunk. Make sure that the number doesn't exceed 10,000. If it does, just split `found` into smaller parts and run separately over sevral days/API keys.
-
----
-
-### `{database_search}`
-
----
-
-_(You don't have to change anything, so just run this chunk.)_
-
-This is the meat of the script. It takes the paper IDs that have been found and grabs information about them by querying the Microsoft Academic database. This will take a couple minutes (~30min for 10,000 searches). The resulting dataframe of papers and information about them are stored in the variable `iteration_data`.
-
-
-This chunk returns the number of papers whose information were able to be searched, and the number of those that weren't (For some papers, the database has an ID assigned to them, but stores no additional information. This is very rare and should not be more than a couple papers).
-
----
-
-### `{filter}`
-
----
-
-By default, this chunk filters out any papers that aren't journal articles (Pub_type == 1). It also shows you the count of different publication types.
-
-If you want to include everything from the search, you can simply skip this search. Or you can set up different filters on publication type using these keys: (0:Unknown, 1:Journal article, 2:Patent, 3:Conference paper, 4:Book chapter, 5:Book, 6:Book reference entry, 7:Dataset, 8:Repository)
-
----
-
-### `{summary}`
-
----
-
-_(You don't have to change anything, so just run this chunk.)_
-
-Not really critical to anything. It just gives you nice graphs summarizing the output. You can use this to check if there are any glaring errors.
-
----
-
-## WRITE section
-
----
-
----
-
-### `{output}`
-
----
-
-If you run this chunk, it writes out the results from the search stored in `iteration_data` to `search_output.csv`.
-
----
-
-### `{update_screened}`
-
----
-
-If you run this chunk, it writes out the updated list of the papers that have/will be screened to `screened.csv`.
-
-This chunk returns the number of new papers that have been screened from the search, and the updated total number of papers that have been found during the project.
-
----
-
-### `{db_disconnect}`
-
----
-
-Run this at the end of the session to disconnect from the `paper.db` file. It's a safety precaution, not much to it. If you do this then later decide to conduct a search again, you have to re-run the `{setup}` chunk. 
-
-
----
-
-# Demonstration
-
----
-
-Let's say that for the RAN meta-analysis project, you decide to include [Norton et al. (2015)](https://academic.microsoft.com/paper/1964141474) and want to do a backward/forward search on that paper. You search the paper on [Microsoft Academic](https://academic.microsoft.com) and find out that the paper's ID is _1964141474_.
-
-```{r setup, message=FALSE, warning=FALSE, echo=FALSE}
-# load packages
-library(skimr)
-library(tidyverse)
-library(microdemic)
-library(RSQLite)
-library(DBI)
-
-# markdown display option
-options(width = 120)
-
-# set API key
-Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
-
-# connect to database (paper.db file)
-con <- dbConnect(RSQLite::SQLite(),"./paper.db")
-
-# backward search (references)
-backward.search <- function(ID){
-  rs <- dbSendQuery(con,paste("select paperid, refid from refs where paperid in (",paste(ID,collapse=","),")"))
-  rename(fetch(rs, -1), Backward_References = refid, ID = paperid) %>% select(Backward_References, ID)
-}
-# forward search (citations)
-forward.search <- function(ID){
-  rs <- dbSendQuery(con,paste("select paperid, refid from refs where refid in (",paste(ID,collapse=","),")"))
-  rename(fetch(rs, -1), ID = refid, Forward_Citations = paperid) %>% select(ID, Forward_Citations)
-}
-
-# scraping function
-scrape <- function(ID) {
-  article <- ma_evaluate(query = paste('Id=', ID, sep=''),
-                         atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC"))
-  if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
-}
-
-# Load screened IDs
-screened <- read_csv('screened.csv')
-
-```
-
-After you run the `(setup)` chunk to start off the session, you enter in the paper's ID in the `{input}` chunk. This also checks whether a search has been ran on this paper before. (**NOTE**: This is different from saying that the paper having been _found_ from a previous search.)
-
-`{r input}`
-```{r input}
-input <- c(1964141474) #ARTICLE IDs GO HERE
-
-input %in% as.numeric(unlist(str_split(paste(screened$Searched_from, collapse = ", "), ", ")))
-```
-
-This chunk returns `FALSE` for the Norton et al. paper, so we know that we aren't repeating ourselves.
-
-In the **SEARCH** section, you first run the `{backward_forward}` chunk.
-
-`{r backward_forward}`
-```{r backward_forward, warning=FALSE, results='hold'}
-b.data <- backward.search(input)
-f.data <- forward.search(input)
-found <- unique(c(as.numeric(b.data$Backward_References), as.numeric(f.data$Forward_Citations)))
-
-print(paste("Papers found from backward search:", nrow(b.data)))
-print(paste("Papers found from forward search:", nrow(f.data)))
-print(paste("Total # of unique papers found:", length(found)))
-```
-
-The chunk returns some stats about the search. Overall, 151 paper IDs have been found from the forward/backward search process.
-
-Next, you run the `{remove screened}` chunk to remove any papers that have already been screened before.
-
-`{r remove_screened}`
-```{r remove_screened}
-already_screened <- found[found %in% screened$ID]
-found <- found[!found %in% screened$ID]
-
-print(paste("Total # of unique papers found that haven't been screened already:", length(found)))
-```
-
-We see that from the 151 papers that have been found with the backward/forward search, 13 have already been screened before, so we're left with 138 papers that are truly "new". These 138 papers are the ones whose information will be fetched from the web in the `{database_search}` chunk. This next chunk doesn't require you to change anything, so you just run it.
-
-`{r database_search}`
-```{r database_search, message=FALSE, warning=FALSE, results='hold'}
-iteration_data <- tibble(Id = numeric(), Ti = character(), Pt = character(), Y = numeric(),
-                         CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
-for (ID in found) {
-  df <- scrape(ID)
-  df$RId <- length(df$RId[[1]])
-  df$J.JN <- paste(unlist(df$J.JN), collapse = ', ')
-  df$AA <- paste(unlist(df$AA), collapse = ', ')
-  iteration_data <- bind_rows(iteration_data, df)
-}
-
-iteration_data <- iteration_data %>% 
-  rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
-         Pub_type = Pt, Citations_count = CC, References_count = RId) %>% 
-  select(ID, Title, Year, Authors, Journal, Pub_type, Citations_count, References_count)
-
-searched <- iteration_data$ID
-searched <- searched[!is.na(searched)]
-
-abstracts <- tibble(Id = numeric(), abstract = character())
-for (ID in found){
-  abst <- ma_abstract(query = paste("Id=", ID, sep = ""))
-  abstracts <- bind_rows(abstracts, abst)
-}
-abstracts <- abstracts %>% rename(ID = Id, Abstract = abstract)
-
-iteration_data <- inner_join(iteration_data, abstracts, by = 'ID') -> iteration_data_original
-
-print(paste("# of papers whose information were fetched from database:", nrow(iteration_data)))
-print(paste("# of papers whose information couldn't be fetched from database:",
-            length(found) - nrow(iteration_data)))
-```
-
-This returns some stats on the search. Out of 138 papers whose IDs were searched in the web, 137 of them had information that could be grabbed, but one didn't. This happens sometimes, but shouldn't happen too often. It's a problem with the database missing information, not a problem on our side, so don't have to worry too much about it.
-
-After running the search, you're curious about what the output actually looks like. So you type in `iteration_data` in the console to explore the output.
-
-```{r}
-sample_n(iteration_data, 10)
-```
-
-Then you proceed to the last step in the **SEARCH** section, which is filtering. You decide that you only want to keep journal articles, so you run the `{filter}` chunk with the default setting, which removes all papers that aren't journal articles. 
-
-`{r filter}`
-```{r filter}
-count(group_by(iteration_data, Pub_type)) # run this first if you want to check Pub_type distribution
-
-iteration_data <- filter(iteration_data, Pub_type == 1) # can change to filter other types
-```
-
-Since you are only keeping journal articles (Pub_type ==1), we are now left with 115 papers at the end of this search. These 115 papers are ones that you will be doing adding to the queue of papers that needs title/abstract/full-text screening.
-
-You are also interested in summary statistics on the 115 papers that you ended up with. You run the `{r summary}` chunk for some simple visuals (code skipped to save space). It returns 3 graphs and one summary table, which are all pretty self-explanatory.
-
-```{r summary, message=FALSE, warning=FALSE, echo=FALSE, results='hold'}
-# Data
-backwards_data <- filter(iteration_data, ID %in% as.numeric(b.data$Backward_References)) %>% 
-  mutate(type = "backward")
-forwards_data <- filter(iteration_data, ID %in% as.numeric(f.data$Forward_Citations)) %>% 
-  mutate(type = "forward")
-
-searched_data <- rbind(backwards_data, forwards_data)
-
-overlap <- searched_data[duplicated(select(searched_data, -type)),]
-
-searched_data <- searched_data[!duplicated(select(searched_data, -type)),]
-
-if (nrow(overlap) > 0){searched_data[searched_data$ID %in% overlap$ID,]$type = "both"}
-
-# Overall summary
-skim_with(numeric = list(hist = NULL), integer = list(hist = NULL))
-skim(mutate(iteration_data, ID = as.character(ID)))
-
-# Year summary
-input_data <- tibble(Id = numeric(), Ti = character(), Pt = character(), Y = numeric(),
-                     CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
-for (ID in input) {
-  df <- scrape(ID)
-  df$RId <- length(df$RId[[1]])
-  df$J.JN <- paste(unlist(df$J.JN), collapse = ', ')
-  df$AA <- paste(unlist(df$AA), collapse = ', ')
-  input_data <- bind_rows(input_data, df)
-}
-input_data <- rename(input_data, Year = Y)
-
-ggplot(searched_data, aes(x = Year, fill = type)) +
-  geom_rect(data = input_data,
-            aes(xmin = min(Year), xmax = max(Year), ymin = 0, ymax = Inf),
-            fill = "skyblue", alpha = 0.1, show.legend = FALSE) +
-  geom_histogram(bins = 25, color = 'white') +
-  scale_x_continuous(breaks = seq(min(searched_data$Year), max(searched_data$Year), 10)) +
-  labs(title = "Year Data", y = "Articles Found", fill = "Search Type") +
-  geom_vline(aes(xintercept = median(input_data$Year)), linetype = 2) + 
-  scale_fill_grey() + theme_bw()
-
-# Author summary
-author_data <- tibble(author = unlist(mutate(iteration_data, Authors = str_split(Authors, ', '))$Authors))
-author_data <- group_by(author_data, author) %>% count() %>% arrange(desc(n))
-
-author_plot <- author_data[1:min(25,nrow(author_data)),]
-ggplot(author_plot, aes(x = fct_reorder(author, desc(n)), y = n)) +
-  geom_col(color = 'white') +
-  labs(title = "Author Data", x = 'Authors (Top 25)', y = "Count") +
-  coord_flip() + theme_bw()
-
-# Journal summary
-journal_data <- searched_data %>%
-  group_by(Journal) %>% count() %>%
-  arrange(desc(n))
-
-journal_plot <- journal_data[1:min(25,nrow(journal_data)),]
-ggplot(journal_plot, aes(x = fct_reorder(Journal, desc(n)), y = n)) +
-  geom_col(color = 'white') +
-  labs(title = "Journal Data", x = 'Journals (Top 25)', y = "Count") +
-  coord_flip() + theme_bw()
-```
-
-That concludes the **SEARCH** section!
-
-After doubling checking everything looks okay, you decide you want to save the work, so you proceed to the **WRITE** section and run the chunks there.
-
-When you run the `{output}` chunk, `iteration_data` is updated to include information about the search process, namely the date and time it was ran and the papers that were ran. The timestamping allows us to track our work and recording the papers that were searched allows us to go back to a previous state of `screened.csv` if we find out later that we accidentally included paper(s) that we don't want in the snowball process.
-
-The `{output}` chunk writes out a timestamped `.csv` file which contains information about the 115 papers you just found, and information about the search process.
-
-`{r output}`
-```{r output, eval=FALSE}
-iteration_data <- as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
-                                  Searched_from = paste(input, collapse = ", "),
-                                  iteration_data))
-write_csv(iteration_data, paste0("Search_Output_", format(Sys.time(), "%Y_%m_%d_%H_%M"), ".csv"))
-```
-
-Lastly, you update the running list of papers that have been searched for the project that you're working on by running the `{update_screened}` chunk.
-
-`{r update_screened}`
-```{r update_screened, message=FALSE, warning=FALSE, eval=FALSE}
-write_csv(rbind(screened, iteration_data), "screened.csv")
-```
-
-Once you are done with the session, remember to disconnect from `paper.db` by running the `{db_disconnect}` chunk. 
-
-`{r db_disconnect}`
-```{r db_disconnect, eval = FALSE}
-dbDisconnect(con)
-```
-
-
+Many thanks to LEARN lab, especially Sean, Jinnie, and Prof. Norton for providing suggestions and support.
