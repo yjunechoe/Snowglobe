@@ -18,7 +18,7 @@ _Legal disclaimer goes here_
 
 **Snowballer** is an app that runs forward (citations) and backward (references) searches for a given list of papers and fetches information about the searched papers using [Microsoft Academic](https://www.microsoft.com/en-us/research/project/academic/).
 
-Papers are searched using the IDs that they are assigned in the database. The ID of a paper can be found by looking up the paper online on the [Microsoft Academic database](https://academic.microsoft.com/home). If the paper exists in the databse, its ID can be found in the page that contains information about the paper after `paper/` in the URL. For example, the paper at the url `https://academic.microsoft.com/paper/2170716495/...` has the ID _2170716495_.
+Papers are searched using the IDs that they are assigned in the database. The ID of a paper can be found by looking up the paper online on the [Microsoft Academic searchable database](https://academic.microsoft.com/home). If the paper exists in the databse, its ID can be found in the page that contains information about the paper after `paper/` in the URL. For example, the paper at the url `https://academic.microsoft.com/paper/2170716495/...` has the ID _2170716495_.
 
 ---
 
@@ -26,7 +26,7 @@ Papers are searched using the IDs that they are assigned in the database. The ID
 
 ---
 
-To query the online database, you need Microsoft's Academic Knowledge API key. The API key permits you to 10,000 transactions (papers fetched online) a day. [Sign up for an API key here.](https://msr-apis.portal.azure-api.net/signup) After signing in, you can [find your API key here](https://msr-apis.portal.azure-api.net/) under the KEYS tab.
+To query the online database, you need Microsoft's Academic Knowledge API key. The API key permits you to 10,000 transactions (papers fetched online) a day. You can [sign up for an API key here.](https://msr-apis.portal.azure-api.net/signup) After signing in, you can [find your API key here](https://msr-apis.portal.azure-api.net/) under the KEYS tab.
 
 You also want to prepare a running list of articles that have been searched/screened so far in the project, named `screened.csv`, with 11 fields:
 
@@ -42,7 +42,7 @@ You also want to prepare a running list of articles that have been searched/scre
 - `References` : number of references
 - `Abstract` : paper's abstract
 
-The first two colums: `Date` and `Searched_from` are metadata about the search that Snowballer appends to the output result, but it needs those columns to be initialized in the input file to do that. The rest of the columns are the information that Snowballer returns for each paper it finds from the snowball search.
+The first two colums: `Date` and `Searched_from` are metadata about the search that Snowballer appends to the downloadble output result. The rest of the columns are the information that Snowballer returns for each paper it finds from the snowball search.
 
 --- 
 
@@ -92,6 +92,9 @@ Below displays the **Input Data** tab after running a snowball search on _196414
 
 The results in the **Output Data** has the same format, except with more papers.
 
+The `References` and `Citations` columns in the output data gives you a rough sense of each paper's _impact_ on the project, if you later decide to include it in the analysis and snowball it. You might want to give papers that have high citation/reference counts more scrutiny in the screening process.
+
+
 ---
 
 ### **Search Statistics** Tab
@@ -102,7 +105,9 @@ After running the search, you can also look at some basic statistics about the s
 
 The **Search Statistics** tab includes a comprehensive skim summary and visualizes the distribution of years, authors, and journals of the papers returned in the **Output Data** tab.
 
-The graphs are simple, but the skim summary takes a bit to process. You mainly want to focus on the number of observations, the number of missing abstracts, and the number of journal articles (Pub_type == 1), boxed in the image below in that order.
+The graphs are simple, but the skim summary takes a bit to process. You mainly want to focus on the number of observations, the number of missing abstracts, and the number of journal articles (`Pub_type` == 1), boxed in the image below in that order. Here's the full key for `Pub_type` for reference - (0:Unknown, 1:Journal article, 2:Patent, 3:Conference paper, 4:Book chapter, 5:Book, 6:Book reference entry, 7:Dataset, 8:Repository)
+
+Here's an example from our earlier snowball search on Norton et al. 2015 (ID: _1964141474_).
 
 ![](manual_images/summary_data.png)
 

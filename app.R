@@ -1,10 +1,5 @@
-#options(warn=-1)
+options(warn=-1)
 source('app_source/snowballer_source.R')
-
-
-
-library(shiny)
-library(DT)
 
 ui <- fluidPage(
   

@@ -1,9 +1,14 @@
 # load packages
-library(skimr)
-library(tidyverse)
-library(microdemic)
-library(RSQLite)
-library(DBI)
+
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+
+packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "DT")
+ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 
