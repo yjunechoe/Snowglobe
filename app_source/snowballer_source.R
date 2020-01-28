@@ -13,18 +13,38 @@ ipak(packages)
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 
 # connect to database (paper.db file)
-con <- dbConnect(RSQLite::SQLite(),"./paper.db")
+con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/MAG/paper.db") # changed for MAG testing
+
+########################
+## Snowball Functions ##
+########################
 
 # backward search (references)
 backward.search <- function(ID){
-  rs <- dbSendQuery(con,paste("select paperid, refid from refs where paperid in (",paste(ID,collapse=","),")"))
-  rename(fetch(rs, -1), Backward_References = refid, ID = paperid) %>% select(Backward_References, ID)
+  dbGetQuery(con, paste0("select paperid, refid from refs where paperid in (",
+                         paste(ID, collapse = ","), ")")) %>% 
+    rename(Backward_References = refid, ID = paperid) %>% 
+    select(Backward_References, ID) %>%
+    mutate(Backward_References = as.numeric(Backward_References))
 }
+
 # forward search (citations)
 forward.search <- function(ID){
-  rs <- dbSendQuery(con,paste("select paperid, refid from refs where refid in (",paste(ID,collapse=","),")"))
-  rename(fetch(rs, -1), ID = refid, Forward_Citations = paperid) %>% select(ID, Forward_Citations)
+  dbGetQuery(con, paste0("select paperid, refid from refs where refid in (",
+                         paste(ID, collapse = ","), ")")) %>% 
+    rename(ID = refid, Forward_Citations = paperid) %>%
+    select(ID, Forward_Citations) %>% 
+    mutate(Forward_Citations = as.numeric(Forward_Citations))
 }
+
+# both search
+snowball <- function(ID){
+  unique(c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations))
+}
+
+######################
+## Scrape Functions ##
+######################
 
 # scraping functions
 scrape <- function(ID) {
@@ -51,5 +71,13 @@ scrape.abst.tidy <- function(IDs) {
   data %>% rename(ID = Id, Abstract = abstract)
 }
 
+# quick db search
+fast.scrape <- function(ID){
+  res <- dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))
+  res$DocType[is.na(res$DocType)] = "Unknown"
+  as_tibble(res) %>%
+    mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
+    select(-DocType)
+}
 
 

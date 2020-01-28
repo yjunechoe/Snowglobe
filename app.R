@@ -18,7 +18,8 @@ ui <- fluidPage(
       actionButton("do_check","Check for Repeats"),
       p(),
       verbatimTextOutput("check"),
-      actionButton("do_search", tags$b("Run Search")),
+      actionButton("do_search", tags$b("Run Search (Comprehensive)")),
+      actionButton("do_quick_search", tags$b("Run Search (Quick)")),
       h2("Write"),
       downloadButton("downloadData", "Download Results"),
       p(),
@@ -70,6 +71,7 @@ ui <- fluidPage(
   )
 )
 
+
 server <- function(input, output) {
   
   # read in screened
@@ -110,7 +112,7 @@ server <- function(input, output) {
   output$frwd_search <- renderText({nrow(f.data())})
   ## unique list of IDs found from backward + forward
   found_original <- reactive({
-    unique(c(as.numeric(b.data()$Backward_References), as.numeric(f.data()$Forward_Citations)))
+    unique(c(b.data()$Backward_References, f.data()$Forward_Citations))
   })
   output$unq_found <- renderText({length(found_original())})
   ## remove duplicates
@@ -120,9 +122,9 @@ server <- function(input, output) {
   
   
   
-  # online database search
+  # search
   ## scrape input
-  input_data <- eventReactive(input$do_search, {
+  input_data <- eventReactive({c(input$do_search, input$do_quick_search)}, {
     showModal(modalDialog(paste("Fetching", length(input_id()), "paper(s)..."), footer=NULL))
     inputs <- scrape.tidy(input_id())
     input_abst <- scrape.abst.tidy(input_id())
@@ -133,11 +135,16 @@ server <- function(input, output) {
       select(ID, Title, Year, Authors, Journal, Pub_type, Citations, References) %>% 
       inner_join(input_abst, by = "ID")
   })
-  ## scrape output
+  # search setup
   observeEvent(input$do_search, {
+    to_display <<- "c"
     if (!input$api_key == "") {Sys.setenv(MICROSOFT_ACADEMIC_KEY = input$api_key)}
   })
-  output_data <- eventReactive(input$do_search, {
+  observeEvent(input$do_quick_search, {
+    to_display <<- "q"
+  })
+  # comprehensive search output
+  output_data_c <- eventReactive(input$do_search, {
     showModal(modalDialog(paste("Fetching", length(found()), "paper(s)... (~200/min)"), footer=NULL))
     outputs <- scrape.tidy(found())
     output_abst <- scrape.abst.tidy(found())
@@ -148,27 +155,41 @@ server <- function(input, output) {
       select(ID, Title, Year, Authors, Journal, Pub_type, Citations, References) %>% 
       inner_join(output_abst, by = "ID")
   })
+  ## quick search output
+  output_data_q <- eventReactive(input$do_quick_search, {
+    showModal(modalDialog(paste("Fetching", length(found()), "paper(s)... (~1,000/sec)"), footer=NULL))
+    outputs <- fast.scrape(found())
+    removeModal()
+    tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
+           Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA, Abstract = NA)
+  })
   
+  # converge
   
+  output_data <- reactive({
+    if (to_display == "q") {select(output_data_q(), c(ID, Year, Title))}
+    else if (to_display == "c") {output_data_c()}
+  })
   
   # DataTables
   output$input_table <- renderDT(input_data(), class = "display compact")
-  output$output_table <- renderDT(output_data(), class = "display compact",
+  output$output_table <- renderDT(output_data(),
+                                  class = "display compact",
                                   options = list(
-                                    lengthMenu = list(c(10, 25, 50, -1),
-                                                      c("10", "25", "50", "All")),
-                                    pageLength = 10))
+                                    lengthMenu = list(c(25, 50, 100, -1),
+                                                      c("25", "50", "100", "All")),
+                                    pageLength = 25))
   
   
   
   # visualization
   ## setup
   searched_data_original <- reactive({
-    backwards_data <- output_data() %>%
-      filter(ID %in% as.numeric(b.data()$Backward_References)) %>% 
+    backwards_data <- output_data_c() %>%
+      filter(ID %in% b.data()$Backward_References) %>% 
       mutate(type = "backward")
-    forwards_data <- output_data() %>%
-      filter(ID %in% as.numeric(f.data()$Forward_Citations)) %>% 
+    forwards_data <- output_data_c() %>%
+      filter(ID %in% f.data()$Forward_Citations) %>% 
       mutate(type = "forward")
     rbind(backwards_data, forwards_data)
   })
@@ -183,8 +204,10 @@ server <- function(input, output) {
   ## overall summary
   output$skim <- renderPrint({
     showModal(modalDialog("Summarizing...", footer=NULL))
-    my_skim <- skim_with(numeric = sfl(hist = NULL), character = sfl(whitespace = NULL))
-    skim_data <- mutate(output_data(),
+    my_skim <- skim_with(numeric = sfl(hist = NULL),
+                         character = sfl(whitespace = NULL),
+                         factor = sfl(ordered = NULL))
+    skim_data <- mutate(output_data_c(),
                 ID = as.factor(ID),
                 Journal = as.factor(Journal),
                 Pub_type = as.factor(Pub_type))
@@ -206,7 +229,7 @@ server <- function(input, output) {
   
   ## author summary
   author_data <- reactive({
-    a <- tibble(author = unlist(mutate(output_data(), Authors = str_split(Authors, ', '))$Authors))
+    a <- tibble(author = unlist(mutate(output_data_c(), Authors = str_split(Authors, ', '))$Authors))
     group_by(a, author) %>% count() %>% arrange(desc(n))
   })
   author_plot_data <- reactive({
@@ -253,10 +276,10 @@ server <- function(input, output) {
   output$downloadUpdated <- downloadHandler(
     filename = function() {"screened.csv"},
     content = function(file) {
-      write.csv(rbind(screened_data(),
-                      as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
-                                      Searched_from = paste(input_id(), collapse = ", "),
-                                      output_data()))),
+      write.csv(bind_rows(screened_data(),
+                           as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
+                                           Searched_from = paste(input_id(), collapse = ", "),
+                                           output_data()))),
                 file, row.names = FALSE)
     }
   )
