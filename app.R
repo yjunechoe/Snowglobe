@@ -154,11 +154,15 @@ server <- function(input, output) {
   ## quick search output
   output_data_q <- eventReactive(input$do_quick_search, {
     showModal(modalDialog(paste("Fetching", length(found()), "paper(s)... (Quick)"), footer=NULL))
+    tic <- Sys.time()
     outputs <- fast.scrape(found())
     outputs <- tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
                       Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA)
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))} else {outputs$Abstract = NA}
-    removeModal()
+    toc <- Sys.time()
+    showModal(modalDialog(title = "Search Log", HTML(paste("Time taken:", round(as.numeric(toc - tic), 3), "seconds.",
+                                                           "<br> # of Papers failed to fetch:", length(found()) - nrow(outputs),
+                                                           "<br> Papers failed to fetch:")), footer=NULL, easyClose = TRUE))
     outputs
   })
   

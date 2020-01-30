@@ -7,7 +7,7 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = TRUE)
 }
 
-packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "DT")
+packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "DT", "microbenchmark")
 ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
@@ -82,5 +82,3 @@ fast.scrape <- function(ID){
     mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
     select(-DocType)
 }
-
-
