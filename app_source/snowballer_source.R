@@ -62,13 +62,16 @@ scrape.tidy <- function(IDs) {
     df$AA <- paste(unlist(df$AA), collapse = ', ')
     data <- bind_rows(data, df)
   }
-  data
+  data %>%
+    rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
+           Pub_type = Pt, Citations = CC, References = RId) %>% 
+    select(ID, Title, Year, Authors, Journal, Pub_type, Citations, References) 
 }
 
 scrape.abst.tidy <- function(IDs) {
   data <- tibble(Id = numeric(), abstract = character())
   for (ID in IDs) {data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
-  data %>% rename(ID = Id, Abstract = abstract)
+  data %>% rename(ID = Id, Abstract = abstract) %>% mutate(Abstract = ifelse(Abstract == "", NA, Abstract))
 }
 
 # quick db search
