@@ -157,7 +157,7 @@ server <- function(input, output) {
     outputs <- fast.scrape(found())
     outputs <- tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
                       Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA)
-    if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))} else {outputs <- outputs$Abstracts = NA}
+    if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))} else {outputs$Abstract = NA}
     removeModal()
     outputs
   })
