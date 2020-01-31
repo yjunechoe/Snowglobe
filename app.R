@@ -3,11 +3,7 @@ options(shiny.maxRequestSize=100*1024^2)
 source('app_source/snowballer_source.R')
 
 ui <- fluidPage(
-  
-  # Application title
   titlePanel("Snowballer"),
-  
-  # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
       h2("Setup"),
@@ -15,13 +11,13 @@ ui <- fluidPage(
                 placeholder = "(Leave blank to use stored key)"),
       fileInput("file_name","Upload Searched IDs"),
       h2("Search"),
-      textInput("input_id", "Article IDs (comma delimited):"),
+      textInput("input_id", "Paper IDs to snowball (comma separated):"),
       actionButton("do_check","Check for Repeats"),
       p(),
       verbatimTextOutput("check"),
       checkboxInput("get_abstracts", "Get Abstracts", FALSE),
-      actionButton("do_search", tags$b("Run Search (Comprehensive)")),
       actionButton("do_quick_search", tags$b("Run Search (Quick)")),
+      actionButton("do_search", tags$b("Run Search (Comprehensive)")),
       h2("Write"),
       downloadButton("downloadData", "Download Results"),
       p(),
@@ -29,8 +25,6 @@ ui <- fluidPage(
       h2("End"),
       actionButton("disconnect", "Disconnect")
     ),
-    
-    # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(type = "tabs",
                   tabPanel("Summary",
@@ -49,7 +43,6 @@ ui <- fluidPage(
                              textOutput("unq_found", inline = TRUE)),
                            p("Unique papers found (duplicates removed):",
                              textOutput("found_dup_rm", inline = TRUE))
-                           
                   ),
                   tabPanel("Input Data", 
                            dataTableOutput("input_table"),
@@ -83,11 +76,7 @@ server <- function(input, output) {
       read.csv(input$file_name$datapath)
     } else {return(NULL)}
   })
-  
   output$searched_num <- renderText(nrow(screened_data()))
-  #output$searched_last <- renderText({tail(screened_data(), 1)$Date})
-  
-  
   
   # Search input setup
   ## check repeats
@@ -144,25 +133,35 @@ server <- function(input, output) {
   })
   # comprehensive search output
   output_data_c <- eventReactive(input$do_search, {
-    showModal(modalDialog(paste("Fetching", length(found()), "paper(s)... (Comprehensive)"), footer=NULL))
+    showModal(modalDialog(paste("[Comprehensive Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
+    tic <- Sys.time()
     outputs <- scrape.tidy(found())
     output_abst <- scrape.abst.tidy(found())
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))}
-    removeModal()
+    toc <- round(as.numeric(Sys.time() - tic), 3)
+    showModal(modalDialog(title = "Search Log",
+                          HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
+                                     "<br> <b>Papers searched:</b>", length(found()),
+                                     "<br> <b>Papers failed to fetch:</b>", length(found()) - nrow(outputs),
+                                     "<br>", paste(found()[!found() %in% outputs$ID], collapse = "<br>"))),
+                          footer = NULL, easyClose = TRUE))
     outputs
   })
   ## quick search output
   output_data_q <- eventReactive(input$do_quick_search, {
-    showModal(modalDialog(paste("Fetching", length(found()), "paper(s)... (Quick)"), footer=NULL))
+    showModal(modalDialog(paste("[Quick Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
     tic <- Sys.time()
     outputs <- fast.scrape(found())
     outputs <- tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
                       Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA)
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))} else {outputs$Abstract = NA}
-    toc <- Sys.time()
-    showModal(modalDialog(title = "Search Log", HTML(paste("Time taken:", round(as.numeric(toc - tic), 3), "seconds.",
-                                                           "<br> # of Papers failed to fetch:", length(found()) - nrow(outputs),
-                                                           "<br> Papers failed to fetch:")), footer=NULL, easyClose = TRUE))
+    toc <- round(as.numeric(Sys.time() - tic), 3)
+    showModal(modalDialog(title = "Search Log",
+                          HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
+                                     "<br> <b>Papers searched:</b>", length(found()),
+                                     "<br> <b>Papers failed to fetch:</b>", length(found()) - nrow(outputs),
+                                     "<br>", paste(found()[!found() %in% outputs$ID], collapse = "<br>"))),
+                          footer = NULL, easyClose = TRUE))
     outputs
   })
   
@@ -177,10 +176,9 @@ server <- function(input, output) {
   output$input_table <- renderDT(input_data(), class = "display compact")
   output$output_table <- renderDT(output_data(),
                                   class = "display compact",
-                                  options = list(
-                                    lengthMenu = list(c(25, 50, 100, -1),
-                                                      c("25", "50", "100", "All")),
-                                    pageLength = 25))
+                                  options = list(pageLength = 25,
+                                                 lengthMenu = list(c(25, 50, 100, -1),
+                                                                   c("25", "50", "100", "All"))))
   
   
   
@@ -218,7 +216,7 @@ server <- function(input, output) {
   
   ## year summary
   output$plot_year <- renderPlot({
-    ggplot(searched_data(), aes(x = Year, fill = type)) +
+    ggplot(searched_data(), aes(x = Year, fill = fct_relevel(type, "forward", "backward"))) +
       geom_rect(data = input_data(),
                 aes(xmin = min(Year), xmax = max(Year), ymin = 0, ymax = Inf),
                 fill = "skyblue", alpha = 0.1, show.legend = FALSE) +
@@ -265,9 +263,7 @@ server <- function(input, output) {
   
   # download
   output$downloadData <- downloadHandler(
-    filename = function() {
-      paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")
-    },
+    filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
       write.csv(as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
                                 Searched_from = paste(input_id(), collapse = ", "),
@@ -294,7 +290,6 @@ server <- function(input, output) {
     stopApp()
   })
   
-  
-  
 }
+
 shinyApp(ui, server)
