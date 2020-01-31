@@ -138,7 +138,7 @@ server <- function(input, output) {
     outputs <- scrape.tidy(found())
     output_abst <- scrape.abst.tidy(found())
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))}
-    toc <- round(as.numeric(Sys.time() - tic), 3)
+    toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
                                      "<br> <b>Papers searched:</b>", length(found()),
@@ -155,7 +155,7 @@ server <- function(input, output) {
     outputs <- tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
                       Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA)
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()))} else {outputs$Abstract = NA}
-    toc <- round(as.numeric(Sys.time() - tic), 3)
+    toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
                                      "<br> <b>Papers searched:</b>", length(found()),
@@ -208,9 +208,9 @@ server <- function(input, output) {
                          character = sfl(whitespace = NULL),
                          factor = sfl(ordered = NULL))
     skim_data <- mutate(output_data_c(),
-                ID = as.factor(ID),
-                Journal = as.factor(Journal),
-                Pub_type = as.factor(Pub_type))
+                        ID = as.factor(ID),
+                        Journal = as.factor(Journal),
+                        Pub_type = as.factor(Pub_type))
     select(my_skim(skim_data), -c(n_missing, complete_rate))
   })
   
@@ -275,9 +275,9 @@ server <- function(input, output) {
     filename = function() {"Screened.csv"},
     content = function(file) {
       write.csv(bind_rows(mutate(screened_data(), Pub_type = as.character(Pub_type)),
-                           as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
-                                           Searched_from = paste(input_id(), collapse = ", "),
-                                           output_data()))),
+                          as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
+                                          Searched_from = paste(input_id(), collapse = ", "),
+                                          output_data()))),
                 file, row.names = FALSE)
     }
   )
