@@ -71,7 +71,8 @@ scrape.tidy <- function(IDs) {
 scrape.abst.tidy <- function(IDs) {
   data <- tibble(Id = numeric(), abstract = character())
   for (ID in IDs) {data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
-  data %>% rename(ID = Id, Abstract = abstract) %>% mutate(Abstract = ifelse(Abstract == "", NA, Abstract))
+  data %>% rename(ID = Id, Abstract = abstract) %>% 
+    mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "Abstract NA NA ")))
 }
 
 # quick db search
