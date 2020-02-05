@@ -15,6 +15,61 @@ Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 # connect to database (paper.db file)
 con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/MAG/paper.db") # changed for MAG testing
 
+######################
+## Search Functions ##
+######################
+
+# search by title
+title.strip <- function(title){tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))}
+title.search <- function(title){
+  searched <- ma_evaluate(query=paste0('Ti=', "'", title.strip(title), "'"),
+              atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
+    select(-(1:2))
+  if (nrow(searched) == 0) {tibble(Id = NA, Ti = title.strip(title))}
+  else if (nrow(searched) > 1) {arrange(searched, desc(Y), desc(Pt))[1,]}
+  else {searched}
+}
+
+title.search.tidy <- function(titles){
+  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
+                 CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
+  for (title in titles) {
+    df <- title.search(title)
+    df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
+    df$AA <- paste(unique(unlist(df$AA)), collapse = ', ')
+    data <- bind_rows(data, df)
+  }
+  data %>% 
+    rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
+           Pub_type = Pt, Citations = CC, References = RId) %>% 
+    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
+}
+
+# search by doi
+doi.search <- function(doi){
+  searched <- ma_evaluate(query=paste0('DOI=', "'", doi, "'"),
+                          atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
+    select(-(1:2))
+  if (nrow(searched) == 0) {tibble(Id = NA, DOI = doi)}
+  else if (nrow(searched) > 1) {arrange(searched, desc(Y), desc(Pt))[1,]}
+  else {searched}
+}
+
+doi.search.tidy <- function(dois){
+  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
+                 CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
+  for (doi in dois) {
+    df <- doi.search(doi)
+    df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
+    df$AA <- paste(unique(unlist(df$AA)), collapse = ', ')
+    data <- bind_rows(data, df)
+  }
+  data %>% 
+    rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
+           Pub_type = Pt, Citations = CC, References = RId) %>% 
+    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
+}
+
 ########################
 ## Snowball Functions ##
 ########################
@@ -43,39 +98,39 @@ snowball <- function(ID){
 }
 
 ######################
-## Scrape Functions ##
+## Fetch Functions ##
 ######################
 
 # scraping functions
 scrape <- function(ID) {
-  article <- ma_evaluate(query = paste('Id=', ID, sep=''),
-                         atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC"))
+  article <- ma_evaluate(query = paste0('Id=', ID),
+                         atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI"))
   if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
 }
 
 scrape.tidy <- function(IDs) {
-  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), Y = numeric(),
+  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
                    CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
   for (ID in IDs) {
     df <- scrape(ID)
-    df$RId <- length(df$RId[[1]])
-    df$AA <- paste(unlist(df$AA), collapse = ', ')
+    df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
+    df$AA <-  paste(unique(unlist(df$AA)), collapse = ', ')
     data <- bind_rows(data, df)
   }
   data %>%
     rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
            Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, Citations, References) 
+    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
 }
 
 scrape.abst.tidy <- function(IDs) {
   data <- tibble(Id = numeric(), abstract = character())
   for (ID in IDs) {data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
   data %>% rename(ID = Id, Abstract = abstract) %>% 
-    mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "Abstract NA NA ")))
+    mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "Abstract [NA ]*")))
 }
 
-# quick db search
+# local db search
 fast.scrape <- function(ID){
   res <- dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))
   res$DocType[is.na(res$DocType)] = "Unknown"

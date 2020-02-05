@@ -204,7 +204,7 @@ server <- function(input, output) {
   output$skim <- renderPrint({
     showModal(modalDialog("Summarizing...", footer=NULL))
     my_skim <- skim_with(numeric = sfl(hist = NULL),
-                         character = sfl(whitespace = NULL),
+                         character = sfl(whitespace = NULL, empty = NULL),
                          factor = sfl(ordered = NULL))
     skim_data <- mutate(output_data_c(),
                         ID = as.factor(ID),
