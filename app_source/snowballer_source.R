@@ -11,9 +11,13 @@ packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "sh
 ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
+Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1")
+# citation(package='fulltext')
+# ft_abstract(x = "10.1044/0161-1461.2904.197", from = 'scopus', scopusopts = "9c9423562dfa9cef97f2e80c236a5ff1")
+# x$scopus[[1]]$abstract
 
 # connect to database (paper.db file)
-con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/MAG/paper.db") # changed for MAG testing
+con <- dbConnect(SQLite(), "paper.db")
 
 ######################
 ## Search Functions ##
