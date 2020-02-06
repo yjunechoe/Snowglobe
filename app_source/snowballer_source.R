@@ -13,7 +13,7 @@ packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "sh
 ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
-Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1")
+Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186
 opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 # citation(package='fulltext')
 
@@ -149,9 +149,6 @@ scrape.abst.DOI <- function(DOIs){
   }
   data
 }
-
-# ft_abstract(x = "10.1044/0161-1461.2904.197", from = 'scopus', scopusopts = "9c9423562dfa9cef97f2e80c236a5ff1")
-# x$scopus[[1]]$abstract
 
 # local db search
 fast.scrape <- function(ID){

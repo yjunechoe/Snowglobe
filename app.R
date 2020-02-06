@@ -7,10 +7,17 @@ ui <- fluidPage(theme = shinytheme("readable"),
   sidebarLayout(
     sidebarPanel(
       h2("Setup"),
-      textInput("api_key", p("Microsoft Academic API Key:"),
+      textInput("MA_key", p("Microsoft Academic API Key <",
+                            a("GET", href="https://msr-apis.portal.azure-api.net/products/project-academic-knowledge"), "> :"),
                 placeholder = "(Leave blank to use stored key)"),
-      fileInput("file_name","Upload Searched IDs"),
+      textInput("EL_key", p("Elsevier API Key <",
+                            a("GET", href="https://dev.elsevier.com"), "> :"),
+                placeholder = "(Leave blank to use stored key)"),
+      fileInput("file_name","Upload Running ID List"),
       h2("Search"),
+      textInput("with_Title", p("Search by Title:")),
+      textInput("with_DOI", p("Search by DOI")),
+      h2("Snowball"),
       textInput("input_id", "Paper IDs to snowball (comma separated):"),
       actionButton("do_check","Check for Repeats"),
       p(),
@@ -20,7 +27,6 @@ ui <- fluidPage(theme = shinytheme("readable"),
       actionButton("do_search", tags$b("Run Search (Comprehensive)")),
       h2("Write"),
       downloadButton("downloadData", "Download Results"),
-      p(),
       downloadButton("downloadUpdated", "Download Updated ID List"),
       h2("End"),
       actionButton("disconnect", "Disconnect")
@@ -126,7 +132,9 @@ server <- function(input, output) {
   # search setup
   observeEvent(input$do_search, {
     to_display <<- "c"
-    if (!input$api_key == "") {Sys.setenv(MICROSOFT_ACADEMIC_KEY = input$api_key)}
+    if (!input$MA_key == "") {Sys.setenv(MICROSOFT_ACADEMIC_KEY = input$MA_key)}
+    if (!input$EL_key == "") {Sys.setenv(ELSEVIER_SCOPUS_KEY = input$EL_key)}
+    opts <<- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
   })
   observeEvent(input$do_quick_search, {
     to_display <<- "q"
