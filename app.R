@@ -13,21 +13,20 @@ ui <- fluidPage(theme = shinytheme("readable"),
       textInput("EL_key", p("Elsevier API Key <",
                             a("GET", href="https://dev.elsevier.com"), "> :"),
                 placeholder = "(Leave blank to use stored key)"),
-      fileInput("file_name","Upload Running ID List"),
-      h2("Search"),
-      textInput("with_Title", p("Search by Title:")),
-      textInput("with_DOI", p("Search by DOI")),
+      fileInput("screened","Upload Running ID List of Papers:"),
+      h2("Get IDs"),
+      fileInput("to_search","Find Paper IDs Using Their Title and/or DOI:"),
       h2("Snowball"),
-      textInput("input_id", "Paper IDs to snowball (comma separated):"),
+      textInput("input_id", "Paper IDs to Snowball (comma separated):"),
       actionButton("do_check","Check for Repeats"),
       p(),
       verbatimTextOutput("check"),
       checkboxInput("get_abstracts", "Get Abstracts", FALSE),
       actionButton("do_quick_search", tags$b("Run Search (Quick)")),
       actionButton("do_search", tags$b("Run Search (Comprehensive)")),
-      h2("Write"),
-      downloadButton("downloadData", "Download Results"),
-      downloadButton("downloadUpdated", "Download Updated ID List"),
+      h2("Download"),
+      downloadButton("downloadData", "Results"),
+      downloadButton("downloadUpdated", "Updated ID List"),
       h2("End"),
       actionButton("disconnect", "Disconnect")
     ),
@@ -77,9 +76,9 @@ server <- function(input, output) {
   
   # read in screened
   screened_data <- reactive({
-    if(is.null(input$file_name)) return (NULL)
-    if(file.exists(input$file_name$datapath)){
-      read.csv(input$file_name$datapath)
+    if(is.null(input$screened)) return (NULL)
+    if(file.exists(input$screened$datapath)){
+      read.csv(input$screened$datapath)
     } else {return(NULL)}
   })
   output$searched_num <- renderText(nrow(screened_data()))
