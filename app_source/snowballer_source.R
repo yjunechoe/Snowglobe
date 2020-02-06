@@ -1,4 +1,6 @@
-# load packages
+###########
+## SETUP ##
+###########
 
 ipak <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
@@ -7,17 +9,16 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = TRUE)
 }
 
-packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "shinythemes", "DT", "microbenchmark")
+packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "shinythemes", "DT", "microbenchmark", "fulltext")
 ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1")
+opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 # citation(package='fulltext')
-# ft_abstract(x = "10.1044/0161-1461.2904.197", from = 'scopus', scopusopts = "9c9423562dfa9cef97f2e80c236a5ff1")
-# x$scopus[[1]]$abstract
 
 # connect to database (paper.db file)
-con <- dbConnect(SQLite(), "paper.db")
+con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db")
 
 ######################
 ## Search Functions ##
@@ -102,17 +103,17 @@ snowball <- function(ID){
 }
 
 ######################
-## Fetch Functions ##
+## Scrape Functions ##
 ######################
 
-# scraping functions
-scrape <- function(ID) {
+# paper info
+scrape <- function(ID){
   article <- ma_evaluate(query = paste0('Id=', ID),
                          atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI"))
   if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
 }
 
-scrape.tidy <- function(IDs) {
+scrape.tidy <- function(IDs){
   data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
                    CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
   for (ID in IDs) {
@@ -127,12 +128,30 @@ scrape.tidy <- function(IDs) {
     select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
 }
 
-scrape.abst.tidy <- function(IDs) {
+# abstract
+## microsoft academic (MAG ID)
+scrape.abst.ID <- function(IDs){
   data <- tibble(Id = numeric(), abstract = character())
-  for (ID in IDs) {data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
+  for (ID in IDs){data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
   data %>% rename(ID = Id, Abstract = abstract) %>% 
     mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "Abstract [NA ]*")))
 }
+## scopus (DOI)
+scrape.abst.DOI <- function(DOIs){
+  abst <- NULL
+  data <- tibble(DOI = character(), Abstract = character())
+  for (d in DOIs){
+    ft <- tryCatch({ft <- ft_abstract(x = d, from = "scopus", scopusopts = opts)$scopus[[1]]},
+                   error = function(cond){ft <- NULL})
+    if (is_null(ft)) {abst <- tibble(DOI = d, Abstract = NA)}
+    else {abst <- tibble(DOI = ft$doi, Abstract = ifelse(is_null(ft$abstract), NA, ft$abstract))}
+    data <- rbind(data, abst)
+  }
+  data
+}
+
+# ft_abstract(x = "10.1044/0161-1461.2904.197", from = 'scopus', scopusopts = "9c9423562dfa9cef97f2e80c236a5ff1")
+# x$scopus[[1]]$abstract
 
 # local db search
 fast.scrape <- function(ID){

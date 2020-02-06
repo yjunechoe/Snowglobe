@@ -120,7 +120,7 @@ server <- function(input, output) {
     inputs <- scrape.tidy(input_id())
     removeModal()
     if (input$get_abstracts) {
-      inner_join(inputs, scrape.abst.tidy(input_id()), by = "ID")
+      inner_join(inputs, scrape.abst.ID(input_id()), by = "ID")
     } else {inputs}
   })
   # search setup
@@ -136,7 +136,13 @@ server <- function(input, output) {
     showModal(modalDialog(paste("[Comprehensive Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
     tic <- Sys.time()
     outputs <- scrape.tidy(found())
-    if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()), by = "ID")}
+    if (input$get_abstracts) {
+      outputs <- inner_join(outputs, scrape.abst.ID(found()), by = "ID")
+      for (i in which(!is.na(outputs$DOI) & is.na(outputs$Abstract))) {
+        outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- ft_abstract(x = outputs[i,]$DOI, from = "scopus", scopusopts = opts)$scopus[[1]]$abstract},
+                                           error = function(cond){outputs[i,"Abstract"] <- NA})
+      }
+    }
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
@@ -153,7 +159,7 @@ server <- function(input, output) {
     outputs <- fast.scrape(found())
     outputs <- tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
                       Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA)
-    if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.tidy(found()), by = "ID")} else {outputs$Abstract = NA}
+    if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.ID(found()), by = "ID")} else {outputs$Abstract = NA}
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
