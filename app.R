@@ -22,6 +22,7 @@ ui <- fluidPage(theme = shinytheme("readable"),
       p(),
       verbatimTextOutput("check"),
       checkboxInput("get_abstracts", "Get Abstracts", FALSE),
+      checkboxInput("toggle_abstracts", "Toggle Abstracts", TRUE),
       actionButton("do_quick_search", tags$b("Run Search (Quick)")),
       actionButton("do_search", tags$b("Run Search (Comprehensive)")),
       h2("Download"),
@@ -186,11 +187,24 @@ server <- function(input, output) {
   
   # DataTables
   output$input_table <- renderDT(input_data(), class = "display compact")
-  output$output_table <- renderDT(output_data(),
+  output$output_table <- renderDT(if (input$get_abstracts & !input$toggle_abstracts) {select(output_data(), -10)}
+                                  else {output_data()},
                                   class = "display compact",
+                                  selection = "single",
                                   options = list(pageLength = 25,
                                                  lengthMenu = list(c(25, 50, 100, -1),
-                                                                   c("25", "50", "100", "All"))))
+                                                                   c("25", "50", "100", "All")),
+                                                 scrollX = TRUE,
+                                                 autoWidth = TRUE))
+  
+  observeEvent(input$output_table_rows_selected, {
+    paper_doi <- output_data()[input$output_table_rows_selected, "DOI"]
+    if (!is.na(paper_doi)) {
+      browseURL(paste0("https://doi.org/", paper_doi))
+      #showModal(modalDialog(a("Paper Link", href = paste0("https://doi.org/", paper_doi), target = "_blank"),
+      #                      footer=NULL, easyClose = TRUE))
+    }
+  })
   
   
   

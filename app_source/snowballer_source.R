@@ -18,7 +18,7 @@ opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 # citation(package='fulltext')
 
 # connect to database (paper.db file)
-con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db")
+con <- dbConnect(SQLite(), "paper.db")
 
 ######################
 ## Search Functions ##
@@ -158,3 +158,4 @@ fast.scrape <- function(ID){
     mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
     select(-DocType)
 }
+
