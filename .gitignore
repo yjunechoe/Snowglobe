@@ -1,0 +1,5 @@
+
+*.history
+.DS_Store
+screened.csv
+app_source/.Rhistory
