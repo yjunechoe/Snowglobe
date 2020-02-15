@@ -134,7 +134,7 @@ scrape.abst.ID <- function(IDs){
   data <- tibble(Id = numeric(), abstract = character())
   for (ID in IDs){data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
   data %>% rename(ID = Id, Abstract = abstract) %>% 
-    mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "Abstract [NA ]*")))
+    mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "^Abstract[ ]*[NA ]*")))
 }
 ## scopus (DOI)
 scrape.abst.DOI <- function(DOIs){
@@ -145,6 +145,29 @@ scrape.abst.DOI <- function(DOIs){
                    error = function(cond){ft <- NULL})
     if (is_null(ft)) {abst <- tibble(DOI = d, Abstract = NA)}
     else {abst <- tibble(DOI = ft$doi, Abstract = ifelse(is_null(ft$abstract), NA, ft$abstract))}
+    data <- rbind(data, abst)
+  }
+  data
+}
+
+###### CROSSREF ###
+## TODO ##
+# 1. direct to MAG link on click using ID if DOI not available
+# --- #STILL DO ON APP.R
+# 2. grepl match ellipsis and run scopus abstract fetch
+# --- grepl(x = ..., pattern = "[.]{3}$")
+#####
+# library(rcrossref)
+# cr_abstract("10.1044/1092-4388(2002/093)")
+# OR:: ft_abstract(x = "10.1044/1092-4388(2002/093)", from = "crossref")$crossref
+## TODO 
+scrape.abst.DOI.cr <- function(DOIs) {
+  data <- tibble(DOI = character(), Abstract = character())
+  for (d in DOIs) {
+    abst <- tryCatch({abst <- cr_abstract(d)},
+                     error = function(cond){abst <- NA})
+    if (is.na(abst)) {abst <- tibble(DOI = d, Abstract = NA)}
+    else {abst <- tibble(DOI = d, Abstract = str_squish(abst))}
     data <- rbind(data, abst)
   }
   data
