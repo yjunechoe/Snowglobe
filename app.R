@@ -13,12 +13,13 @@ ui <- fluidPage(theme = shinytheme("readable"),
       textInput("EL_key", p("Elsevier API Key <",
                             a("GET", href="https://dev.elsevier.com"), "> :"),
                 placeholder = "(Leave blank to use stored key)"),
-      fileInput("screened","Upload Running ID List of Papers:"),
+      fileInput("screened", "Upload Running List of Paper IDs:"),
       h2("Get IDs"),
-      fileInput("to_search","Find Paper IDs Using Their Title and/or DOI:"),
+      fileInput("to_find"," Find Paper IDs on Microsoft Academic Using Title and/or DOI:"),
+      downloadButton("paperIDs", "Paper IDs"),
       h2("Snowball"),
       textInput("input_id", "Paper IDs to Snowball (comma separated):"),
-      actionButton("do_check","Check for Repeats"),
+      actionButton("do_check", "Check for Repeats"),
       p(),
       verbatimTextOutput("check"),
       checkboxInput("get_abstracts", "Get Abstracts", FALSE),
@@ -74,6 +75,15 @@ ui <- fluidPage(theme = shinytheme("readable"),
 
 
 server <- function(input, output) {
+  
+  # read in papers to find IDs for
+  to_find_papers <- reactive({
+    if(is.null(input$to_find)) return (NULL)
+    if(file.exists(input$to_find$datapath)){
+      read.csv(input$to_find$datapath)
+    } else {return(NULL)}
+  })
+  found_IDs <- reactive({search.IDs(to_find_papers())})
   
   # read in screened
   screened_data <- reactive({
@@ -199,11 +209,7 @@ server <- function(input, output) {
   
   observeEvent(input$output_table_rows_selected, {
     paper_doi <- output_data()[input$output_table_rows_selected, "DOI"]
-    if (!is.na(paper_doi)) {
-      browseURL(paste0("https://doi.org/", paper_doi))
-      #showModal(modalDialog(a("Paper Link", href = paste0("https://doi.org/", paper_doi), target = "_blank"),
-      #                      footer=NULL, easyClose = TRUE))
-    }
+    if (!is.na(paper_doi)) {browseURL(paste0("https://doi.org/", paper_doi))}
   })
   
   
@@ -288,6 +294,13 @@ server <- function(input, output) {
   
   
   # download
+  output$paperIDs <- downloadHandler(
+    filename = function()  {"screened.csv"},
+    content = function(file) {
+      write_csv(found_IDs(), file)
+    }
+  ) ########################TO DO#####
+  
   output$downloadData <- downloadHandler(
     filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
