@@ -13,19 +13,23 @@ ui <- fluidPage(theme = shinytheme("readable"),
       textInput("EL_key", p("Elsevier API Key <",
                             a("GET", href="https://dev.elsevier.com"), "> :"),
                 placeholder = "(Leave blank to use stored key)"),
-      fileInput("screened", "Upload Running List of Paper IDs:"),
+      fileInput("screened", "Upload Running List of Papers with Microsoft Academic IDs:"),
+      checkboxInput("to_output", "Send to OUTPUT DATA tab", FALSE),
       h2("Get IDs"),
       fileInput("to_find"," Find Paper IDs on Microsoft Academic Using Title and/or DOI:"),
       downloadButton("paperIDs", "Paper IDs"),
-      h2("Snowball"),
+      h2("Search"),
       textInput("input_id", "Paper IDs to Snowball (comma separated):"),
       actionButton("do_check", "Check for Repeats"),
       p(),
       verbatimTextOutput("check"),
       checkboxInput("get_abstracts", "Get Abstracts", FALSE),
-      checkboxInput("toggle_abstracts", "Toggle Abstracts", TRUE),
       actionButton("do_quick_search", tags$b("Run Search (Quick)")),
       actionButton("do_search", tags$b("Run Search (Comprehensive)")),
+      p(),
+      p(tags$b("Output Display Options")),
+      checkboxInput("toggle_abstracts", "Toggle Abstracts", TRUE),
+      checkboxInput("select_NA", "Show Missing Abstracts", FALSE),
       h2("Download"),
       downloadButton("downloadData", "Results"),
       downloadButton("downloadUpdated", "Updated ID List"),
@@ -94,6 +98,7 @@ server <- function(input, output) {
   })
   output$searched_num <- renderText(nrow(screened_data()))
   
+  
   # Search input setup
   ## check repeats
   input_check <- eventReactive(input$do_check, {
@@ -155,9 +160,18 @@ server <- function(input, output) {
     tic <- Sys.time()
     outputs <- scrape.tidy(found())
     if (input$get_abstracts) {
+      # MAG fetch
       outputs <- inner_join(outputs, scrape.abst.ID(found()), by = "ID")
+      outputs <- mutate(outputs, Abstract = ifelse(grepl(Abstract, pattern = "[.]{3}$"), NA, Abstract)) # remove incomplete abstracts
+      # crossref fetch
       for (i in which(!is.na(outputs$DOI) & is.na(outputs$Abstract))) {
-        outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- ft_abstract(x = outputs[i,]$DOI, from = "scopus", scopusopts = opts)$scopus[[1]]$abstract},
+        outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- cr_abstract(outputs[i,]$DOI)},
+                                          error = function(cond){outputs[i,"Abstract"] <- NA})
+      }
+      # scopus fetch
+      for (i in which(!is.na(outputs$DOI) & is.na(outputs$Abstract))) {
+        outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- ft_abstract(x = outputs[i,]$DOI,
+                                                                                from = "scopus", scopusopts = opts)$scopus[[1]]$abstract},
                                            error = function(cond){outputs[i,"Abstract"] <- NA})
       }
     }
@@ -197,8 +211,15 @@ server <- function(input, output) {
   
   # DataTables
   output$input_table <- renderDT(input_data(), class = "display compact")
-  output$output_table <- renderDT(if (input$get_abstracts & !input$toggle_abstracts) {select(output_data(), -10)}
-                                  else {output_data()},
+  display_outdata <- reactive({
+    if (input$to_output) {df <- screened_data()}
+    else {df <- output_data()}
+    if (input$select_NA) {df <- filter(df, is.na(Abstract))}
+    if (input$get_abstracts & !input$toggle_abstracts) {df <- tryCatch({df <- select(df, -Abstract)},
+                                                                       error = function(cond){df <- df})}
+    df
+  })
+  output$output_table <- renderDT(display_outdata(),
                                   class = "display compact",
                                   selection = "single",
                                   options = list(pageLength = 25,
@@ -208,8 +229,9 @@ server <- function(input, output) {
                                                  autoWidth = TRUE))
   
   observeEvent(input$output_table_rows_selected, {
-    paper_doi <- output_data()[input$output_table_rows_selected, "DOI"]
+    paper_doi <- display_outdata()[input$output_table_rows_selected, "DOI"]
     if (!is.na(paper_doi)) {browseURL(paste0("https://doi.org/", paper_doi))}
+    else {browseURL(paste0("https://academic.microsoft.com/paper/", display_outdata()[input$output_table_rows_selected, "ID"]))}
   })
   
   

@@ -9,16 +9,17 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = TRUE)
 }
 
-packages <- c("tidyverse", "skimr", "microdemic", "RSQLite", "DBI", "shiny", "shinythemes", "DT", "microbenchmark", "fulltext")
+packages <- c("tidyverse", "shiny", "shinythemes", "DT", "skimr", "microbenchmark",
+              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref")
 ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
-Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186
+Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186 // check remaining with `verbose = TRUE` argument
 opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 # citation(package='fulltext')
 
 # connect to database (paper.db file)
-con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db")
+con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db") # dbListFields(con)
 
 #########################
 ## ID Search Functions ##
@@ -125,6 +126,12 @@ scrape <- function(ID){
   if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
 }
 
+pub.key <- function(Pub){
+  mapdf <- tibble(old = 0:8,
+                  new = c("Unknown", "Journal Article", "Patent", "Conference", "Book Chapter", "Book", "Book Reference", "Dataset", "Repository"))
+  mapdf[as.numeric(Pub) + 1,]$new
+}
+
 scrape.tidy <- function(IDs){
   data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
                    CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
@@ -137,7 +144,8 @@ scrape.tidy <- function(IDs){
   data %>%
     rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
            Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
+    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
+    mutate(Pub_type = pub.key(Pub_type))
 }
 
 # abstract
@@ -146,7 +154,7 @@ scrape.abst.ID <- function(IDs){
   data <- tibble(Id = numeric(), abstract = character())
   for (ID in IDs){data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
   data %>% rename(ID = Id, Abstract = abstract) %>% 
-    mutate(Abstract = ifelse(Abstract == "", NA, str_remove(Abstract, "^Abstract[ ]*[NA ]*")))
+    mutate(Abstract = ifelse(Abstract == "", NA, str_squish(str_remove_all(str_remove(Abstract, "^Abstract[ ]*[NA ]*"), "(NA)+"))))
 }
 ## scopus (DOI)
 scrape.abst.DOI <- function(DOIs){
