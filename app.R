@@ -321,8 +321,7 @@ server <- function(input, output) {
     content = function(file) {
       write_csv(found_IDs(), file)
     }
-  ) ########################TO DO#####
-  
+  )
   output$downloadData <- downloadHandler(
     filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {

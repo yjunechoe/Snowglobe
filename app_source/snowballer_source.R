@@ -76,16 +76,22 @@ doi.search.tidy <- function(dois){
     select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
 }
 
-# combined
+# combined ## TODO ##
 search.IDs <- function(df){
   format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                    Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
   df <- bind_rows(format, df %>% select(Title, DOI))
   for (i in 1:nrow(df)) {
-    if (!is.na(df[i, "Title"])) {df[i,] <- title.search.tidy(df[i, "Title"])}
-    else if (!is.na(df[i, "DOI"])) {df[i,] <- doi.search.tidy(df[i, "DOI"])}
+    if (!is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {
+      temp <- doi.search.tidy(df[i, "DOI"])
+      if (is.na(temp$ID)) {temp <- title.search.tidy(df[i, "Title"])}
+      df[i,] <- temp
+    }
+    else if (is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {df[i,] <- title.search.tidy(df[i, "Title"])}
+    else if (!is.na(df[i, "DOI"]) & is.na(df[i, "Title"])) {df[i,] <- doi.search.tidy(df[i, "DOI"])}
+    else {}
   }
-  df
+  mutate(df, Pub_type = pub.key(Pub_type))
 }
 
 ########################
@@ -170,17 +176,7 @@ scrape.abst.DOI <- function(DOIs){
   data
 }
 
-###### CROSSREF ###
-## TODO ##
-# 1. direct to MAG link on click using ID if DOI not available
-# --- #STILL DO ON APP.R
-# 2. grepl match ellipsis and run scopus abstract fetch
-# --- grepl(x = ..., pattern = "[.]{3}$")
-#####
-# library(rcrossref)
-# cr_abstract("10.1044/1092-4388(2002/093)")
-# OR:: ft_abstract(x = "10.1044/1092-4388(2002/093)", from = "crossref")$crossref
-## TODO 
+## crossref (DOI)
 scrape.abst.DOI.cr <- function(DOIs) {
   data <- tibble(DOI = character(), Abstract = character())
   for (d in DOIs) {
