@@ -189,8 +189,8 @@ server <- function(input, output) {
     showModal(modalDialog(paste("[Quick Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
     tic <- Sys.time()
     outputs <- fast.scrape(found())
-    outputs <- tibble(ID = outputs$PaperID, Title = outputs$OriginalTitle, Year = outputs$Year,
-                      Authors = NA, Journal = NA, Pub_type = NA, Citations = NA, References = NA)
+    outputs <- tibble(ID = outputs$ID, Title = outputs$Title, Year = outputs$Year, Pub_type = outputs$Pub_type, DOI = outputs$DOI,
+                      Authors = NA, Journal = NA, Citations = NA, References = NA)
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.ID(found()), by = "ID")} else {outputs$Abstract = NA}
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
@@ -223,10 +223,8 @@ server <- function(input, output) {
                                   class = "display compact",
                                   selection = "single",
                                   options = list(pageLength = 25,
-                                                 lengthMenu = list(c(25, 50, 100, -1),
-                                                                   c("25", "50", "100", "All")),
-                                                 scrollX = TRUE,
-                                                 autoWidth = TRUE))
+                                                 lengthMenu = list(c(25, 50, 100, -1), 
+                                                                   c("25", "50", "100", "All"))))
   
   observeEvent(input$output_table_rows_selected, {
     paper_doi <- display_outdata()[input$output_table_rows_selected, "DOI"]

@@ -191,7 +191,8 @@ scrape.abst.DOI.cr <- function(DOIs) {
 
 # local db search
 fast.scrape <- function(ID){
-  as_tibble(dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")")))
+  as_tibble(dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
+    rename(ID = PaperID, Title = OriginalTitle, Pub_type = DocType, DOI = Doi)
 }
 
 fast.scrape.squish <- function(ID){
