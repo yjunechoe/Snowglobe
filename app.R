@@ -320,15 +320,25 @@ server <- function(input, output) {
       write_csv(found_IDs(), file)
     }
   )
+  
+  output_data_results <- reactive({
+    b <- rename(b.data(), found = Backward_References) %>% filter(!found %in% screened_data()$ID)
+    f <- rename(f.data(), found = Forward_Citations) %>% filter(!found %in% screened_data()$ID)
+    n <- rbind(f, b) %>% select(found) %>% group_by(found) %>% count() %>% rename(ID = found, Density = n)
+    inner_join(output_data(), n, by = "ID")
+  })
+  
   output$downloadData <- downloadHandler(
     filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
       write.csv(as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
                                 Searched_from = paste(input_id(), collapse = ", "),
-                                output_data())),
+                                output_data_results())),
                 file, row.names = FALSE)
     }
   )
+  
+  
   output$downloadUpdated <- downloadHandler(
     filename = function() {"Screened.csv"},
     content = function(file) {
