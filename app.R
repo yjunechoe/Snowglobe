@@ -144,6 +144,7 @@ server <- function(input, output) {
       inner_join(inputs, scrape.abst.ID(input_id()), by = "ID")
     } else {inputs}
   })
+  
   # search setup
   observeEvent(input$do_search, {
     to_display <<- "c"
@@ -154,6 +155,7 @@ server <- function(input, output) {
   observeEvent(input$do_quick_search, {
     to_display <<- "q"
   })
+  
   # comprehensive search output
   output_data_c <- eventReactive(input$do_search, {
     showModal(modalDialog(paste("[Comprehensive Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
@@ -184,6 +186,7 @@ server <- function(input, output) {
                           footer = NULL, easyClose = TRUE))
     outputs
   })
+  
   ## quick search output
   output_data_q <- eventReactive(input$do_quick_search, {
     showModal(modalDialog(paste("[Quick Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
@@ -253,7 +256,7 @@ server <- function(input, output) {
     if (!is.null(nrow(overlap))) {s <- s[s$ID %in% overlap$ID,]$type = "both"} ; s
   })
   
-  ## overall summary
+  ## skim summary
   output$skim <- renderPrint({
     showModal(modalDialog("Summarizing...", footer=NULL))
     my_skim <- skim_with(numeric = sfl(hist = NULL),
@@ -312,32 +315,50 @@ server <- function(input, output) {
   })
   
   
+  # network analysis for result output
+  
+  network <- reactive({
+    s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
+    f <- f.data() %>% filter(!Forward_Citations %in% s) %>% rename(found = Forward_Citations)
+    b <- b.data() %>% filter(!Backward_References %in% s) %>% rename(found = Backward_References)
+    rbind(f, b)
+  })
+  
+  output_data_results <- reactive({
+    net <- network() %>% group_by(found) %>% summarize(Density = length(unlist(list(ID))),
+                                                       Connections = paste(unlist(list(ID)), collapse = ", "))
+    res <- inner_join(output_data(), rename(net, ID = found), by = "ID")
+    cbind(Searched_from = paste(input_id(), collapse = ", "), res)
+  })
+  
+  input_data_results <- reactive({
+    net <- network() %>% filter(found %in% input_id()) %>%
+      group_by(found) %>% summarize(Density = length(unlist(list(ID))),
+                                    Connections = paste(unlist(list(ID)), collapse = ", ")) %>% 
+      rename(ID = found)
+    ##### TODO ######
+    res <- merge(input_data(), net, all.x = TRUE)
+    res[is.na(res$Density),"Density"] = 0
+    res[is.na(res$Connections),"Connections"] = ""
+    cbind(Searched_from = "INPUT", res)
+  })
   
   # download
   output$paperIDs <- downloadHandler(
-    filename = function()  {"screened.csv"},
+    filename = function()  {"ID_LIST.csv"},
     content = function(file) {
       write_csv(found_IDs(), file)
     }
   )
   
-  output_data_results <- reactive({
-    b <- rename(b.data(), found = Backward_References) %>% filter(!found %in% screened_data()$ID)
-    f <- rename(f.data(), found = Forward_Citations) %>% filter(!found %in% screened_data()$ID)
-    n <- rbind(f, b) %>% select(found) %>% group_by(found) %>% count() %>% rename(ID = found, Density = n)
-    inner_join(output_data(), n, by = "ID")
-  })
-  
   output$downloadData <- downloadHandler(
     filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
       write.csv(as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
-                                Searched_from = paste(input_id(), collapse = ", "),
-                                output_data_results())),
+                                bind_rows(input_data_results(), output_data_results()))),
                 file, row.names = FALSE)
     }
   )
-  
   
   output$downloadUpdated <- downloadHandler(
     filename = function() {"Screened.csv"},

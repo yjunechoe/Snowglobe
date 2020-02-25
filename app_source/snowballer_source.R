@@ -80,18 +80,22 @@ doi.search.tidy <- function(dois){
 search.IDs <- function(df){
   format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                    Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+  orig <- df
   df <- bind_rows(format, df %>% select(Title, DOI))
   for (i in 1:nrow(df)) {
     if (!is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {
+      doi <- df[i, "DOI"]
       temp <- doi.search.tidy(df[i, "DOI"])
       if (is.na(temp$ID)) {temp <- title.search.tidy(df[i, "Title"])}
       df[i,] <- temp
+      df[i, "DOI"] <- doi
     }
     else if (is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {df[i,] <- title.search.tidy(df[i, "Title"])}
     else if (!is.na(df[i, "DOI"]) & is.na(df[i, "Title"])) {df[i,] <- doi.search.tidy(df[i, "DOI"])}
     else {}
   }
-  mutate(df, Pub_type = pub.key(Pub_type))
+  df <- mutate(df, Pub_type = pub.key(Pub_type))
+  cbind(select(orig, -c(Title, DOI)), df)
 }
 
 ########################
