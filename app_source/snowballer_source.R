@@ -99,17 +99,28 @@ search.IDs <- function(df){
 }
 
 # PMID to MA
+PMID.info <- function(PMID){
+  tryCatch({entrez_summary(db = "pubmed", id = PMID)}, warning = function(cond){PMID})
+}
+
 PMID.to.MA <- function(PMIDs){
   format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                    Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
   df <- tibble(Title = character(), DOI = character())
   for (PMID in PMIDs) {
-    PMinfo <- entrez_summary(db = "pubmed", id = PMID)
-    PMtitle <- PMinfo$title
-    PMdoi <- PMinfo$articleids[x$articleids$idtype == "doi", "value"]
+    PMinfo <- PMID.info(PMID)
+    if (length(PMinfo) != 1) {
+      PMtitle <- PMinfo$title
+      PMdoi <- PMinfo$articleids[x$articleids$idtype == "doi", "value"]
+    } else {
+      PMtitle <- NA
+      PMdoi <- NA
+    }
     df <- rbind(df, tibble(Title = PMtitle, DOI = PMdoi))
   }
-  search.IDs(df)
+  res <- search.IDs(df)
+  res$PMID <- PMIDs
+  res %>% select(PMID, everything())
 }
 
 ########################

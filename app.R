@@ -1,5 +1,5 @@
 options(warn=-1)
-options(shiny.maxRequestSize=100*1024^2)
+options(shiny.maxRequestSize=500*1024^2)
 source('app_source/snowballer_source.R')
 
 ui <- fluidPage(theme = shinytheme("readable"),
@@ -315,6 +315,7 @@ server <- function(input, output) {
   })
   
   
+  
   # network analysis for result output
   
   network <- reactive({
@@ -342,6 +343,8 @@ server <- function(input, output) {
     res[is.na(res$Connections),"Connections"] = ""
     cbind(Searched_from = "INPUT", res)
   })
+  
+  
   
   # download
   output$paperIDs <- downloadHandler(
