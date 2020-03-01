@@ -76,7 +76,7 @@ doi.search.tidy <- function(dois){
     select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
 }
 
-# combined ## TODO ##
+# combined
 search.IDs <- function(df){
   format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                    Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
@@ -95,7 +95,21 @@ search.IDs <- function(df){
     else {}
   }
   df <- mutate(df, Pub_type = pub.key(Pub_type))
-  cbind(select(orig, -c(Title, DOI)), df)
+  as_tibble(cbind(select(orig, -c(Title, DOI)), df))
+}
+
+# PMID to MA
+PMID.to.MA <- function(PMIDs){
+  format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
+                   Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+  df <- tibble(Title = character(), DOI = character())
+  for (PMID in PMIDs) {
+    PMinfo <- entrez_summary(db = "pubmed", id = PMID)
+    PMtitle <- PMinfo$title
+    PMdoi <- PMinfo$articleids[x$articleids$idtype == "doi", "value"]
+    df <- rbind(df, tibble(Title = PMtitle, DOI = PMdoi))
+  }
+  search.IDs(df)
 }
 
 ########################
@@ -138,7 +152,8 @@ scrape <- function(ID){
 
 pub.key <- function(Pub){
   mapdf <- tibble(old = 0:8,
-                  new = c("Unknown", "Journal Article", "Patent", "Conference", "Book Chapter", "Book", "Book Reference", "Dataset", "Repository"))
+                  new = c("Unknown", "Journal Article", "Patent", "Conference",
+                          "Book Chapter", "Book", "Book Reference", "Dataset", "Repository"))
   mapdf[as.numeric(Pub) + 1,]$new
 }
 
