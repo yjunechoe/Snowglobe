@@ -10,16 +10,15 @@ ipak <- function(pkg){
 }
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "skimr", "microbenchmark",
-              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref")
+              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez")
 ipak(packages)
 
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186 // check remaining with `verbose = TRUE` argument
 opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
-# citation(package='fulltext')
 
 # connect to database (paper.db file)
-con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db") # dbListFields(con)
+con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db")
 
 #########################
 ## ID Search Functions ##
@@ -98,29 +97,29 @@ search.IDs <- function(df){
   as_tibble(cbind(select(orig, -c(Title, DOI)), df))
 }
 
-# PMID to MA
-PMID.info <- function(PMID){
-  tryCatch({entrez_summary(db = "pubmed", id = PMID)}, warning = function(cond){PMID})
+# PubMed ID
+PMID.info <- function(PMID, type = "pubmed"){
+  tryCatch({entrez_summary(db = type, id = PMID)}, warning = function(cond){PMID})
 }
 
-PMID.to.MA <- function(PMIDs){
-  format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
-                   Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
-  df <- tibble(Title = character(), DOI = character())
+PMID.search <- function(PMIDs, type = "pubmed"){
+  format <- tibble(PMID = numeric(), ID = numeric(), Title = character(), Year = numeric(), Authors = character(),
+                   Journal = character(), Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+  df <- tibble(PMID = numeric(), Title = character(), DOI = character())
   for (PMID in PMIDs) {
-    PMinfo <- PMID.info(PMID)
+    PMinfo <- PMID.info(PMID, type = type)
     if (length(PMinfo) != 1) {
       PMtitle <- PMinfo$title
-      PMdoi <- PMinfo$articleids[x$articleids$idtype == "doi", "value"]
+      PMdoi <- PMinfo$articleids[PMinfo$articleids$idtype == "doi", "value"]
+      PMdoi <- ifelse(length(PMdoi) == 0, NA, PMdoi)
     } else {
       PMtitle <- NA
       PMdoi <- NA
     }
-    df <- rbind(df, tibble(Title = PMtitle, DOI = PMdoi))
+    df <- rbind(df, tibble(PMID = PMID, Title = PMtitle, DOI = PMdoi))
   }
-  res <- search.IDs(df)
-  res$PMID <- PMIDs
-  res %>% select(PMID, everything())
+  colnames(df)[1] <- ifelse(type == "pubmed", "PMID", paste0(toupper(type), "ID"))
+  df
 }
 
 ########################
