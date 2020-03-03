@@ -16,7 +16,7 @@ ui <- fluidPage(theme = shinytheme("readable"),
       fileInput("screened", "Upload Running List of Papers with Microsoft Academic IDs:"),
       checkboxInput("to_output", "Send to OUTPUT DATA tab", FALSE),
       h2("Get IDs"),
-      fileInput("to_find"," Find Paper IDs on Microsoft Academic Using Title and/or DOI:"),
+      fileInput("to_find", "Find Papers on Microsoft Academic Using Title, DOI, or PubMed IDs (PMID/PMCID):"),
       downloadButton("paperIDs", "Paper IDs"),
       h2("Search"),
       textInput("input_id", "Paper IDs to Snowball (comma separated):"),
@@ -87,7 +87,11 @@ server <- function(input, output) {
       read.csv(input$to_find$datapath)
     } else {return(NULL)}
   })
-  found_IDs <- reactive({search.IDs(to_find_papers())})
+  found_IDs <- reactive({
+    if (!is.null(to_find_papers()$PMID)) {search.IDs(PMID.search(to_find_papers()$PMID))}
+    else if (!is.null(to_find_papers()$PMCID)) {search.IDs(PMID.search(to_find_papers()$PMCID, type = "pmc"))}
+    else{search.IDs(to_find_papers())}
+    })
   
   # read in screened
   screened_data <- reactive({
