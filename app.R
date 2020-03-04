@@ -3,9 +3,10 @@ options(shiny.maxRequestSize=500*1024^2)
 source('app_source/snowballer_source.R')
 
 ui <- fluidPage(theme = shinytheme("readable"),
-  titlePanel("Snowballer"),
+  titlePanel(h1("Snowballer")),
   sidebarLayout(
     sidebarPanel(
+      tags$style(type="text/css", HTML("menutop ul {padding: 0; margin: 0; list-style: none;}")),
       h2("Setup"),
       textInput("MA_key", p("Microsoft Academic API Key <",
                             a("GET", href="https://msr-apis.portal.azure-api.net/products/project-academic-knowledge"), "> :"),
@@ -16,13 +17,16 @@ ui <- fluidPage(theme = shinytheme("readable"),
       fileInput("screened", "Upload Running List of Papers with Microsoft Academic IDs:"),
       checkboxInput("to_output", "Send to OUTPUT DATA tab", FALSE),
       h2("Get IDs"),
-      fileInput("to_find", "Find Papers on Microsoft Academic Using Title, DOI, or PubMed IDs (PMID/PMCID):"),
-      downloadButton("paperIDs", "Paper IDs"),
+      tippy("<b>Find Papers on Microsoft Academic:</b>",
+            tooltip = "Upload a CSV file with with <i> one or more </i> of the following columns:
+            <li> Title </li> <li> DOI </li> <li> PMID (PubMed ID) </li> <li> PMCID (PMC ID) </li>
+            <br> Download button below outputs a CSV file with the following columns: </br>
+            <li> ID (Microsoft Academic ID) </li> <li> Title </li> <li> Year </li> <li> Authors </li>
+            <li> Journal </li> <li> Pub_type </li> <li> DOI </li> <li> Citations </li> <li> References </li>"),
+      fileInput("to_find", ""),
+      downloadButton("paperIDs", "Download Paper IDs"),
       h2("Search"),
       textInput("input_id", "Paper IDs to Snowball (comma separated):"),
-      actionButton("do_check", "Check for Repeats"),
-      p(),
-      verbatimTextOutput("check"),
       checkboxInput("get_abstracts", "Get Abstracts", FALSE),
       actionButton("do_quick_search", tags$b("Run Search (Quick)")),
       actionButton("do_search", tags$b("Run Search (Comprehensive)")),
@@ -31,10 +35,8 @@ ui <- fluidPage(theme = shinytheme("readable"),
       checkboxInput("toggle_abstracts", "Toggle Abstracts", TRUE),
       checkboxInput("select_NA", "Show Missing Abstracts", FALSE),
       h2("Download"),
-      downloadButton("downloadData", "Results"),
-      downloadButton("downloadUpdated", "Updated ID List"),
-      h2("End"),
-      actionButton("disconnect", "Disconnect")
+      downloadButton("downloadData", "Download Results"),
+      downloadButton("downloadUpdated", "Download Updated ID List"),
     ),
     mainPanel(
       tabsetPanel(type = "tabs",
@@ -104,17 +106,11 @@ server <- function(input, output) {
   
   
   # Search input setup
-  ## check repeats
-  input_check <- eventReactive(input$do_check, {
-    repeats <- input_id() %in%
-      as.numeric(unlist(str_split(paste(screened_data()$Searched_from, collapse = ", "), ", ")))
-    if (length(input_id()[repeats]) != 0){
-      input_id()[repeats]
-    } else {FALSE}
-  })
-  output$check <- renderPrint(input_check())
-  ## store ID
-  input_id <- reactive({as.numeric(strsplit(input$input_id,', ')[[1]])})
+  ## remove repeats
+  input_orig <- reactive({as.numeric(strsplit(input$input_id,', ')[[1]])})
+  repeats <- reactive({as.numeric(unlist(str_split(paste(screened_data()$Searched_from, collapse = ", "), ", ")))})
+  input_id <- reactive({unique(input_orig()[!input_orig() %in% repeats()])})
+  ## display IDs to search  
   output$input <- renderText({input_id()})
   
   
@@ -330,16 +326,17 @@ server <- function(input, output) {
   })
   
   output_data_results <- reactive({
-    net <- network() %>% group_by(found) %>% summarize(Density = length(unlist(list(ID))),
-                                                       Connections = paste(unlist(list(ID)), collapse = ", "))
+    net <- network() %>% group_by(found) %>%
+      summarize(Density = length(unlist(list(ID))),
+                Connections = paste(unlist(list(ID)), collapse = ", "))
     res <- inner_join(output_data(), rename(net, ID = found), by = "ID")
     cbind(Searched_from = paste(input_id(), collapse = ", "), res)
   })
   
   input_data_results <- reactive({
-    net <- network() %>% filter(found %in% input_id()) %>%
-      group_by(found) %>% summarize(Density = length(unlist(list(ID))),
-                                    Connections = paste(unlist(list(ID)), collapse = ", ")) %>% 
+    net <- network() %>% filter(found %in% input_id()) %>% group_by(found) %>%
+      summarize(Density = length(unlist(list(ID))),
+                Connections = paste(unlist(list(ID)), collapse = ", ")) %>% 
       rename(ID = found)
     ##### TODO ######
     res <- merge(input_data(), net, all.x = TRUE)
@@ -378,13 +375,6 @@ server <- function(input, output) {
     }
   )
   
-  
-  
-  # disconnect
-  observeEvent(input$disconnect, {
-    dbDisconnect(con)
-    stopApp()
-  })
   
 }
 
