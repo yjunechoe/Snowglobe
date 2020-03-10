@@ -2,8 +2,9 @@ options(warn=-1)
 options(shiny.maxRequestSize=500*1024^2)
 source('app_source/snowballer_source.R')
 
-ui <- fluidPage(theme = shinytheme("readable"),
-  titlePanel(h1("Snowballer")),
+ui <- fluidPage(
+  theme = shinytheme("readable"),
+  titlePanel("Snowballer"),
   sidebarLayout(
     sidebarPanel(
       tags$style(type="text/css", HTML("menutop ul {padding: 0; margin: 0; list-style: none;}")),
@@ -17,12 +18,12 @@ ui <- fluidPage(theme = shinytheme("readable"),
       fileInput("screened", "Upload Running List of Papers with Microsoft Academic IDs:"),
       checkboxInput("to_output", "Send to OUTPUT DATA tab", FALSE),
       h2("Get IDs"),
-      tippy("<b>Find Papers on Microsoft Academic:</b>",
-            tooltip = "Upload a CSV file with with <i> one or more </i> of the following columns:
-            <li> Title </li> <li> DOI </li> <li> PMID (PubMed ID) </li> <li> PMCID (PMC ID) </li>
+      tippy("<b>Upload Papers to Search on Microsoft Academic:</b>",
+            tooltip = 'Upload a CSV file with with <i> one or more </i> of the following column formats:
+            <li> "Title" and "DOI" </li> <li> "PMID" (PubMed ID) </li> <li> "PMCID" (PubMed Central ID) </li>
             <br> Download button below outputs a CSV file with the following columns: </br>
             <li> ID (Microsoft Academic ID) </li> <li> Title </li> <li> Year </li> <li> Authors </li>
-            <li> Journal </li> <li> Pub_type </li> <li> DOI </li> <li> Citations </li> <li> References </li>"),
+            <li> Journal </li> <li> Pub_type </li> <li> DOI </li> <li> Citations </li> <li> References </li>'),
       fileInput("to_find", ""),
       downloadButton("paperIDs", "Download Paper IDs"),
       h2("Search"),
@@ -93,9 +94,10 @@ server <- function(input, output) {
     if (!is.null(to_find_papers()$PMID)) {search.IDs(PMID.search(to_find_papers()$PMID))}
     else if (!is.null(to_find_papers()$PMCID)) {search.IDs(PMID.search(to_find_papers()$PMCID, type = "pmc"))}
     else{search.IDs(to_find_papers())}
-    })
+  })
   
-  # read in screened
+  
+  # read in running list
   screened_data <- reactive({
     if(is.null(input$screened)) return (NULL)
     if(file.exists(input$screened$datapath)){
@@ -134,7 +136,7 @@ server <- function(input, output) {
   
   
   
-  # search
+  # online query
   ## scrape input
   input_data <- eventReactive({c(input$do_search, input$do_quick_search)}, {
     showModal(modalDialog(paste("Fetching", length(input_id()), "paper(s)..."), footer=NULL))
@@ -218,26 +220,27 @@ server <- function(input, output) {
     if (input$to_output) {df <- screened_data()}
     else {df <- output_data()}
     if (input$select_NA) {df <- filter(df, is.na(Abstract))}
-    if (input$get_abstracts & !input$toggle_abstracts) {df <- tryCatch({df <- select(df, -Abstract)},
-                                                                       error = function(cond){df <- df})}
+    if (input$get_abstracts & !input$toggle_abstracts) {
+      df <- tryCatch({df <- select(df, -Abstract)},
+                     error = function(cond){df <- df})
+      }
     df
   })
-  output$output_table <- renderDT(display_outdata(),
-                                  class = "display compact",
-                                  selection = "single",
-                                  options = list(pageLength = 25,
-                                                 lengthMenu = list(c(25, 50, 100, -1), 
-                                                                   c("25", "50", "100", "All"))))
+  output$output_table <- renderDT(display_outdata(), class = "display compact", selection = "single",
+                                  options = list(pageLength = 25, lengthMenu = list(c(25, 50, 100, -1), 
+                                                                                    c("25", "50", "100", "All"))))
   
+  # cells clickable
   observeEvent(input$output_table_rows_selected, {
     paper_doi <- display_outdata()[input$output_table_rows_selected, "DOI"]
     if (!is.na(paper_doi)) {browseURL(paste0("https://doi.org/", paper_doi))}
-    else {browseURL(paste0("https://academic.microsoft.com/paper/", display_outdata()[input$output_table_rows_selected, "ID"]))}
+    else {browseURL(paste0("https://academic.microsoft.com/paper/",
+                           display_outdata()[input$output_table_rows_selected, "ID"]))}
   })
   
   
   
-  # visualization
+  # results visualization
   ## setup
   searched_data_original <- reactive({
     backwards_data <- output_data_c() %>%
@@ -317,28 +320,27 @@ server <- function(input, output) {
   
   
   # network analysis for result output
-  
+  ## full network
   network <- reactive({
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
     f <- f.data() %>% filter(!Forward_Citations %in% s) %>% rename(found = Forward_Citations)
     b <- b.data() %>% filter(!Backward_References %in% s) %>% rename(found = Backward_References)
     rbind(f, b)
   })
-  
+  ## between input and output
   output_data_results <- reactive({
     net <- network() %>% group_by(found) %>%
-      summarize(Density = length(unlist(list(ID))),
-                Connections = paste(unlist(list(ID)), collapse = ", "))
+      summarize(Density = length(unique(unlist(list(ID)))),
+                Connections = paste(unique(unlist(list(ID))), collapse = ", "))
     res <- inner_join(output_data(), rename(net, ID = found), by = "ID")
     cbind(Searched_from = paste(input_id(), collapse = ", "), res)
   })
-  
+  ## between inputs
   input_data_results <- reactive({
     net <- network() %>% filter(found %in% input_id()) %>% group_by(found) %>%
-      summarize(Density = length(unlist(list(ID))),
-                Connections = paste(unlist(list(ID)), collapse = ", ")) %>% 
+      summarize(Density = length(unique(unlist(list(ID)))),
+                Connections = paste(unique(unlist(list(ID))), collapse = ", ")) %>% 
       rename(ID = found)
-    ##### TODO ######
     res <- merge(input_data(), net, all.x = TRUE)
     res[is.na(res$Density),"Density"] = 0
     res[is.na(res$Connections),"Connections"] = ""
@@ -349,7 +351,7 @@ server <- function(input, output) {
   
   # download
   output$paperIDs <- downloadHandler(
-    filename = function()  {"ID_LIST.csv"},
+    filename = function()  {"ID_list.csv"},
     content = function(file) {
       write_csv(found_IDs(), file)
     }

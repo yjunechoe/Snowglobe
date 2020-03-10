@@ -9,12 +9,14 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = TRUE)
 }
 
-packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "microbenchmark",
+packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr",
               "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez")
 ipak(packages)
 
+# microsoft academic API key
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
-Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186 // check remaining with `verbose = TRUE` argument
+# scopus api key // check remaining with `verbose = TRUE` argument
+Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186
 opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 
 # connect to database (paper.db file)
@@ -26,6 +28,7 @@ con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db")
 
 # search ID by title
 title.strip <- function(title){tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))}
+
 title.search <- function(title){
   searched <- ma_evaluate(query=paste0('Ti=', "'", title.strip(title), "'"),
               atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
@@ -189,7 +192,8 @@ scrape.abst.ID <- function(IDs){
   data <- tibble(Id = numeric(), abstract = character())
   for (ID in IDs){data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
   data %>% rename(ID = Id, Abstract = abstract) %>% 
-    mutate(Abstract = ifelse(Abstract == "", NA, str_squish(str_remove_all(str_remove(Abstract, "^Abstract[ ]*[NA ]*"), "(NA)+"))))
+    mutate(Abstract = ifelse(Abstract == "", NA,
+                             str_squish(str_remove_all(str_remove(Abstract, "^Abstract[ ]*[NA ]*"), "(NA)+"))))
 }
 ## scopus (DOI)
 scrape.abst.DOI <- function(DOIs){
