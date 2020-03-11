@@ -1,4 +1,5 @@
 options(warn=-1)
+options(shiny.sanitize.errors = TRUE)
 options(shiny.maxRequestSize=500*1024^2)
 source('app_source/snowballer_source.R')
 
@@ -46,7 +47,8 @@ ui <- fluidPage(
                            p("Number of paper IDs uploaded:",
                              textOutput("searched_num", inline = TRUE)),
                            br(),
-                           p("Paper ID(s) being searched:",
+                           p("Paper IDs being searched:",
+                             textOutput("input_n", inline = TRUE),
                              verbatimTextOutput("input")),
                            br(),
                            p("Papers found from backward references:",
@@ -71,6 +73,9 @@ ui <- fluidPage(
                            plotOutput("plot_year"),
                            plotOutput("plot_author"),
                            plotOutput("plot_journal")
+                  ),
+                  tabPanel("Network Visualization", 
+                           visNetworkOutput("visualnetwork")
                   ),
                   tabPanel("Manual",
                            includeMarkdown("app_source/snowballer_manual.Rmd")
@@ -114,7 +119,7 @@ server <- function(input, output) {
   input_id <- reactive({unique(input_orig()[!input_orig() %in% repeats()])})
   ## display IDs to search  
   output$input <- renderText({input_id()})
-  
+  output$input_n <- renderText({length(input_id())})
   
   
   # offline database search
@@ -240,7 +245,7 @@ server <- function(input, output) {
   
   
   
-  # results visualization
+  # results summary
   ## setup
   searched_data_original <- reactive({
     backwards_data <- output_data_c() %>%
@@ -323,24 +328,30 @@ server <- function(input, output) {
   ## full network
   network <- reactive({
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
-    f <- f.data() %>% filter(!Forward_Citations %in% s) %>% rename(found = Forward_Citations)
-    b <- b.data() %>% filter(!Backward_References %in% s) %>% rename(found = Backward_References)
-    rbind(f, b)
+    f <- f.data() %>%
+      filter(!Forward_Citations %in% s) %>% ## TODO ## don't filter them out just put them into a "previously found" group
+      rename(from = ID, to = Forward_Citations) %>% 
+      mutate(direction = "forward")
+    b <- b.data() %>%
+      filter(!Backward_References %in% s) %>%
+      rename(from = ID, to = Backward_References) %>% 
+      mutate(direction = "backward")
+    rbind(b, f)
   })
-  ## between input and output
+  ## network between input and output
   output_data_results <- reactive({
-    net <- network() %>% group_by(found) %>%
-      summarize(Density = length(unique(unlist(list(ID)))),
-                Connections = paste(unique(unlist(list(ID))), collapse = ", "))
-    res <- inner_join(output_data(), rename(net, ID = found), by = "ID")
+    net <- network() %>% group_by(to) %>%
+      summarize(Density = length(unique(unlist(list(from)))),
+                Connections = paste(unique(unlist(list(from))), collapse = ", "))
+    res <- inner_join(output_data(), rename(net, ID = to), by = "ID")
     cbind(Searched_from = paste(input_id(), collapse = ", "), res)
   })
-  ## between inputs
+  ## network between inputs
   input_data_results <- reactive({
-    net <- network() %>% filter(found %in% input_id()) %>% group_by(found) %>%
-      summarize(Density = length(unique(unlist(list(ID)))),
-                Connections = paste(unique(unlist(list(ID))), collapse = ", ")) %>% 
-      rename(ID = found)
+    net <- network() %>% filter(to %in% input_id()) %>% group_by(to) %>%
+      summarize(Density = length(unique(unlist(list(from)))),
+                Connections = paste(unique(unlist(list(from))), collapse = ", ")) %>% 
+      rename(ID = to)
     res <- merge(input_data(), net, all.x = TRUE)
     res[is.na(res$Density),"Density"] = 0
     res[is.na(res$Connections),"Connections"] = ""
@@ -348,6 +359,34 @@ server <- function(input, output) {
   })
   
   
+  # network visualization
+  ## setup
+  nodes <- reactive({
+    rbind(tibble(id = unique(network()$from), group = "snowballed"),
+          tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "found"))
+  })
+  edges <- reactive({
+    ledges <<- tibble(color = "orange", label = c("Forward", "Backward"), dashes = c(TRUE, FALSE))
+    network() %>% mutate(dashes = direction == "forward")
+  })
+  ## visnetwork
+  visnet <- reactive({
+    graph <- visNetwork(nodes(), edges()) %>%
+      visPhysics(maxVelocity = 10, timestep = 1) %>% 
+      visGroups(groupname = "searched", color = "orange") %>%
+      visGroups(groupname = "found", color = "lightgreen") %>% 
+      visLegend(addEdges = ledges) %>% 
+      visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, width = "200%", height = "200%")
+    if (nrow(nodes()) > 1000) {
+      graph <- NA
+      showModal(modalDialog("Network too large (>1000) for visualization", footer = NULL, easyClose = TRUE))
+      }
+    if (nrow(nodes()) > 500) {graph <- graph %>%  visPhysics(enabled = FALSE)}
+    else {graph <- graph %>%  visPhysics(stabilization = FALSE) %>% visEdges(arrows = "to")}
+    graph
+  })
+  ## output
+  output$visualnetwork <- renderVisNetwork({visnet()})
   
   # download
   output$paperIDs <- downloadHandler(
