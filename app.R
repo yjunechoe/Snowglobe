@@ -378,11 +378,11 @@ server <- function(input, output) {
       visGroups(groupname = "previously found", color = "lightgrey") %>% 
       visLegend(addEdges = ledges) %>% 
       visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, width = "200%", height = "200%")
-    if (nrow(nodes()) > 1000) {
-      graph <- NA
-      showModal(modalDialog("Network too large (>1000) for visualization", footer = NULL, easyClose = TRUE))
+    if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
+      graph <- graph %>%  visPhysics(enabled = FALSE)
+      showModal(modalDialog("WARNING: Network too large for informative visualization (>1000 nodes)", footer = NULL, easyClose = TRUE))
       }
-    if (nrow(nodes()) > 500) {graph <- graph %>%  visPhysics(enabled = FALSE)}
+    if (max(count(edges(), from)$n) > 200) {graph <- graph %>%  visPhysics(enabled = FALSE)}
     else {graph <- graph %>%  visPhysics(stabilization = FALSE) %>% visEdges(arrows = "to")}
     graph
   })
