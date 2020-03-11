@@ -327,13 +327,10 @@ server <- function(input, output) {
   # network analysis for result output
   ## full network
   network <- reactive({
-    s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
     f <- f.data() %>%
-      filter(!Forward_Citations %in% s) %>% ## TODO ## don't filter them out just put them into a "previously found" group
       rename(from = ID, to = Forward_Citations) %>% 
       mutate(direction = "forward")
     b <- b.data() %>%
-      filter(!Backward_References %in% s) %>%
       rename(from = ID, to = Backward_References) %>% 
       mutate(direction = "backward")
     rbind(b, f)
@@ -359,22 +356,26 @@ server <- function(input, output) {
   })
   
   
-  # network visualization
-  ## setup
+  # network graph
+  ## graph setup
   nodes <- reactive({
-    rbind(tibble(id = unique(network()$from), group = "snowballed"),
-          tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "found"))
+    s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
+    t <- rbind(tibble(id = unique(network()$from), group = "snowballed"),
+               tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "found"))
+    t[t$group == "found" & t$id %in% s,"group"] <- "previously found"
+    t
   })
   edges <- reactive({
-    ledges <<- tibble(color = "orange", label = c("Forward", "Backward"), dashes = c(TRUE, FALSE))
+    ledges <<- tibble(color = "skyblue", label = c("Forward", "Backward"), dashes = c(TRUE, FALSE))
     network() %>% mutate(dashes = direction == "forward")
   })
-  ## visnetwork
+  ## graph aesthetics
   visnet <- reactive({
     graph <- visNetwork(nodes(), edges()) %>%
       visPhysics(maxVelocity = 10, timestep = 1) %>% 
-      visGroups(groupname = "searched", color = "orange") %>%
+      visGroups(groupname = "snowballed", color = "skyblue") %>%
       visGroups(groupname = "found", color = "lightgreen") %>% 
+      visGroups(groupname = "previously found", color = "lightgrey") %>% 
       visLegend(addEdges = ledges) %>% 
       visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, width = "200%", height = "200%")
     if (nrow(nodes()) > 1000) {
@@ -385,17 +386,19 @@ server <- function(input, output) {
     else {graph <- graph %>%  visPhysics(stabilization = FALSE) %>% visEdges(arrows = "to")}
     graph
   })
-  ## output
+  ## graph output
   output$visualnetwork <- renderVisNetwork({visnet()})
   
+  
   # download
+  ## download search results
   output$paperIDs <- downloadHandler(
     filename = function()  {"ID_list.csv"},
     content = function(file) {
       write_csv(found_IDs(), file)
     }
   )
-  
+  ## download snowball results
   output$downloadData <- downloadHandler(
     filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
@@ -404,7 +407,7 @@ server <- function(input, output) {
                 file, row.names = FALSE)
     }
   )
-  
+  ## download updated ID list
   output$downloadUpdated <- downloadHandler(
     filename = function() {"Screened.csv"},
     content = function(file) {
