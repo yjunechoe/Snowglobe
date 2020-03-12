@@ -365,6 +365,7 @@ server <- function(input, output) {
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
     t <- rbind(tibble(id = unique(network()$from), group = "snowballed"),
                tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "newly found"))
+    t$color.border <- "grey"
     t[t$group == "newly found" & t$id %in% s,"group"] <- "previously found"
     hover_info <- fast.scrape(t$id) %>%
       mutate(title = paste0("<p><b>ID:</b> ", ID,
@@ -383,20 +384,20 @@ server <- function(input, output) {
   ## graph aesthetics
   visnet <- reactive({
     graph <- visNetwork(nodes(), edges()) %>%
+      visLayout(randomSeed = 97) %>% 
       visPhysics(maxVelocity = 10, timestep = 1, enabled = FALSE) %>% 
       visGroups(groupname = "snowballed", color = "skyblue") %>%
       visGroups(groupname = "newly found", color = "lightgreen") %>% 
-      visGroups(groupname = "previously found", color = "lightgrey") %>% 
-      visLayout(randomSeed = 97) %>% 
+      visGroups(groupname = "previously found", color = "lightgoldenrodyellow") %>% 
+      visNodes(color = list(border = "grey")) %>% 
+      visEdges(color = list(color = "skyblue")) %>% 
       visLegend(addEdges = ledges) %>% 
       visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
       visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, selectedBy = "group",
                  width = "200%", height = "200%")
-    if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
-      showModal(modalDialog("WARNING: Network too large for informative visualization (>1000 nodes)",
+    if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 200) {
+      showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 200)",
                             footer = NULL, easyClose = TRUE))
-      }
-    if (max(count(edges(), from)$n) > 200) {
       }
     else {
       graph <- graph %>%
