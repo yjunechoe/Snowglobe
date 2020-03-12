@@ -75,7 +75,9 @@ ui <- fluidPage(
                            plotOutput("plot_journal")
                   ),
                   tabPanel("Network Visualization", 
-                           visNetworkOutput("visualnetwork")
+                           visNetworkOutput("visualnetwork"),
+                           p(),
+                           downloadLink("downloadNetwork", "Download Visual Network (.html)")
                   ),
                   tabPanel("Manual",
                            includeMarkdown("app_source/snowballer_manual.Rmd")
@@ -363,10 +365,10 @@ server <- function(input, output) {
   ## graph setup
   nodes <- reactive({
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
-    t <- rbind(tibble(id = unique(network()$from), group = "snowballed"),
-               tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "newly found"))
+    t <- rbind(tibble(id = unique(network()$from), group = "Snowballed"),
+               tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "Newly Found"))
     t$color.border <- "grey"
-    t[t$group == "newly found" & t$id %in% s,"group"] <- "previously found"
+    t[t$group == "Newly Found" & t$id %in% s,"group"] <- "Previously Found"
     hover_info <- fast.scrape(t$id) %>%
       mutate(title = paste0("<p><b>ID:</b> ", ID,
                             "<br><b>Title:</b> ", Title,
@@ -386,9 +388,9 @@ server <- function(input, output) {
     graph <- visNetwork(nodes(), edges()) %>%
       visLayout(randomSeed = 97) %>% 
       visPhysics(maxVelocity = 10, timestep = 1, enabled = FALSE) %>% 
-      visGroups(groupname = "snowballed", color = "skyblue") %>%
-      visGroups(groupname = "newly found", color = "lightgreen") %>% 
-      visGroups(groupname = "previously found", color = "lightgoldenrodyellow") %>% 
+      visGroups(groupname = "Snowballed", color = "skyblue") %>%
+      visGroups(groupname = "Newly Found", color = "lightgreen") %>% 
+      visGroups(groupname = "Previously Found", color = "lightgoldenrodyellow") %>% 
       visNodes(color = list(border = "grey")) %>% 
       visEdges(color = list(color = "skyblue")) %>% 
       visLegend(addEdges = ledges) %>% 
@@ -437,6 +439,11 @@ server <- function(input, output) {
                                           output_data()))),
                 file, row.names = FALSE)
     }
+  )
+  ## download visual network
+  output$downloadNetwork <- downloadHandler(
+    filename = function() {paste0("Snowball_Network", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".html")},
+    content = function(con) {visnet() %>% visSave(con)}
   )
   
   
