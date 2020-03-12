@@ -148,8 +148,10 @@ server <- function(input, output) {
     inputs <- scrape.tidy(input_id())
     removeModal()
     if (input$get_abstracts) {
-      inner_join(inputs, scrape.abst.ID(input_id()), by = "ID")
-    } else {inputs}
+      inputs <- inner_join(inputs, scrape.abst.ID(input_id()), by = "ID")
+    } else {inputs <- inputs}
+    original_titles <- fast.scrape(input_id()) %>% select(ID, Title)
+    inner_join(select(inputs, -Title), original_titles, by = "ID") %>% select(ID, Title, everything())
   })
   
   # search setup
@@ -184,6 +186,7 @@ server <- function(input, output) {
                                            error = function(cond){outputs[i,"Abstract"] <- NA})
       }
     }
+    original_titles <- fast.scrape(found()) %>% select(ID, Title)
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
@@ -191,7 +194,7 @@ server <- function(input, output) {
                                      "<br> <b>Papers failed to fetch:</b>", length(found()) - nrow(outputs),
                                      "<br>", paste(found()[!found() %in% outputs$ID], collapse = "<br>"))),
                           footer = NULL, easyClose = TRUE))
-    outputs
+    inner_join(select(outputs, -Title), original_titles, by = "ID") %>% select(ID, Title, everything())
   })
   
   ## quick search output
@@ -361,29 +364,45 @@ server <- function(input, output) {
   nodes <- reactive({
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
     t <- rbind(tibble(id = unique(network()$from), group = "snowballed"),
-               tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "found"))
-    t[t$group == "found" & t$id %in% s,"group"] <- "previously found"
-    t
+               tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "newly found"))
+    t[t$group == "newly found" & t$id %in% s,"group"] <- "previously found"
+    hover_info <- fast.scrape(t$id) %>%
+      mutate(title = paste0("<p><b>ID:</b> ", ID,
+                            "<br><b>Title:</b> ", Title,
+                            "<br><b>Year:</b> ", Year,
+                            "<br><b>DOI:</b> ", DOI ,
+                            "<br><b>Publication Type</b>: ", Pub_type, 
+                            "</p>")) %>% 
+      select(ID, title) %>% rename(id = ID)
+    inner_join(t, hover_info, by = "id")
   })
   edges <- reactive({
     ledges <<- tibble(color = "skyblue", label = c("Forward", "Backward"), dashes = c(TRUE, FALSE))
-    network() %>% mutate(dashes = direction == "forward")
+    mutate(network(), dashes = direction == "forward")
   })
   ## graph aesthetics
   visnet <- reactive({
     graph <- visNetwork(nodes(), edges()) %>%
-      visPhysics(maxVelocity = 10, timestep = 1) %>% 
+      visPhysics(maxVelocity = 10, timestep = 1, enabled = FALSE) %>% 
       visGroups(groupname = "snowballed", color = "skyblue") %>%
-      visGroups(groupname = "found", color = "lightgreen") %>% 
+      visGroups(groupname = "newly found", color = "lightgreen") %>% 
       visGroups(groupname = "previously found", color = "lightgrey") %>% 
+      visLayout(randomSeed = 97) %>% 
       visLegend(addEdges = ledges) %>% 
-      visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, width = "200%", height = "200%")
+      visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
+      visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, selectedBy = "group",
+                 width = "200%", height = "200%")
     if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
-      graph <- graph %>%  visPhysics(enabled = FALSE)
-      showModal(modalDialog("WARNING: Network too large for informative visualization (>1000 nodes)", footer = NULL, easyClose = TRUE))
+      showModal(modalDialog("WARNING: Network too large for informative visualization (>1000 nodes)",
+                            footer = NULL, easyClose = TRUE))
       }
-    if (max(count(edges(), from)$n) > 200) {graph <- graph %>%  visPhysics(enabled = FALSE)}
-    else {graph <- graph %>%  visPhysics(stabilization = FALSE) %>% visEdges(arrows = "to")}
+    if (max(count(edges(), from)$n) > 200) {
+      }
+    else {
+      graph <- graph %>%
+        visPhysics(enabled = TRUE, stabilization = FALSE) %>% 
+        visInteraction(dragNodes = TRUE) %>% 
+        visEdges(arrows = "to")}
     graph
   })
   ## graph output

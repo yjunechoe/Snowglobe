@@ -9,7 +9,7 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = TRUE)
 }
 
-packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr",
+packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
               "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez")
 ipak(packages)
 
