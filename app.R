@@ -38,7 +38,7 @@ ui <- fluidPage(
       checkboxInput("select_NA", "Show Missing Abstracts", FALSE),
       h2("Download"),
       downloadButton("downloadData", "Download Results"),
-      downloadButton("downloadUpdated", "Download Updated ID List"),
+      downloadButton("downloadUpdated", "Download Updated ID List")
     ),
     mainPanel(
       tabsetPanel(type = "tabs",
@@ -88,7 +88,7 @@ ui <- fluidPage(
 )
 
 
-server <- function(input, output) {
+ server <- function(input, output) {
   
   # read in papers to find IDs for
   to_find_papers <- reactive({
@@ -185,7 +185,7 @@ server <- function(input, output) {
       for (i in which(!is.na(outputs$DOI) & is.na(outputs$Abstract))) {
         outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- ft_abstract(x = outputs[i,]$DOI,
                                                                                 from = "scopus", scopusopts = opts)$scopus[[1]]$abstract},
-                                           error = function(cond){outputs[i,"Abstract"] <- NA})
+                                          error = function(cond){outputs[i,"Abstract"] <- NA})
       }
     }
     original_titles <- fast.scrape(found()) %>% select(ID, Title)
@@ -233,7 +233,7 @@ server <- function(input, output) {
     if (input$get_abstracts & !input$toggle_abstracts) {
       df <- tryCatch({df <- select(df, -Abstract)},
                      error = function(cond){df <- df})
-      }
+    }
     df
   })
   output$output_table <- renderDT(display_outdata(), class = "display compact", selection = "single",
@@ -297,18 +297,23 @@ server <- function(input, output) {
   
   ## author summary
   author_data <- reactive({
-    a <- tibble(author = unlist(mutate(output_data_c(), Authors = str_split(Authors, ', '))$Authors))
-    group_by(a, author) %>% count() %>% arrange(desc(n))
+    a <- data.table(searched_data())[, list(Authors = unlist(strsplit(Authors, ", "))), by = type]
+    total_count <- a %>% group_by(Authors) %>% count() %>% rename(n_total = n)
+    each_count <- a %>% group_by(Authors, type) %>% count() %>% rename(n_type = n)
+    inner_join(each_count, total_count, by = "Authors") %>% ungroup()
   })
-  author_plot_data <- reactive({
-    author_data()[1:min(15,nrow(author_data())),]
+  top_authors <- reactive({
+    (author_data() %>% select(-contains("type")) %>% unique() %>% arrange(desc(n_total)))$Authors[1:15]
   })
-  
+    
   output$plot_author <- renderPlot({
-    ggplot(author_plot_data(), aes(x = fct_reorder(author, desc(n)), y = n)) +
+    author_data()[author_data()$Authors %in% top_authors(), ] %>% 
+    ggplot(aes(x = fct_relevel(Authors, top_authors()), y = n_type,
+               fill = fct_relevel(type, c("forward", "backward")))) +
       geom_col(color = 'white') +
-      labs(title = "Author Data", x = 'Authors (Top 15)', y = "Count") +
-      coord_flip() + theme_bw()
+      labs(title = "Author Data", x = 'Authors (Top 15)', y = "Count", fill = "Direction") +
+      coord_flip() + theme_bw() + scale_fill_manual(values = c("grey80", "grey20")) +
+      scale_y_continuous(breaks = pretty(1:max(author_data()$n_total)))
   })
   
   ## journal summary
@@ -400,7 +405,7 @@ server <- function(input, output) {
     if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 200) {
       showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 200)",
                             footer = NULL, easyClose = TRUE))
-      }
+    }
     else {
       graph <- graph %>%
         visPhysics(enabled = TRUE, stabilization = FALSE) %>% 

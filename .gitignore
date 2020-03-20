@@ -1,5 +1,8 @@
 
-*.history
+.history
 .DS_Store
-screened.csv
+.Rhistory
+*.csv
 app_source/.Rhistory
+even older
+old
