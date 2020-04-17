@@ -94,7 +94,7 @@ ui <- fluidPage(
   to_find_papers <- reactive({
     if(is.null(input$to_find)) return (NULL)
     if(file.exists(input$to_find$datapath)){
-      read.csv(input$to_find$datapath)
+      read_csv(input$to_find$datapath)
     } else {return(NULL)}
   })
   found_IDs <- reactive({
