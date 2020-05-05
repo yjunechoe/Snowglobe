@@ -10,7 +10,7 @@ ipak <- function(pkg){
 }
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
-              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez")
+              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table")
 ipak(packages)
 
 # microsoft academic API key
@@ -20,7 +20,7 @@ Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c
 opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 
 # connect to database (paper.db file)
-con <- dbConnect(SQLite(), "/Users/nortonlab/Desktop/Snowballer/paper.db")
+con <- dbConnect(SQLite(), "paper.db")
 
 #########################
 ## ID Search Functions ##
@@ -31,7 +31,7 @@ title.strip <- function(title){tolower(str_squish(gsub("[^[:alnum:] ]", " ", tit
 
 title.search <- function(title){
   searched <- ma_evaluate(query=paste0('Ti=', "'", title.strip(title), "'"),
-              atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
+                          atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
     select(-(1:2))
   if (nrow(searched) == 0) {tibble(Id = NA, Ti = title.strip(title))}
   else if (nrow(searched) > 1) {arrange(searched, desc(Y), desc(Pt))[1,]}
@@ -152,6 +152,22 @@ snowball <- function(ID){
   unique(c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations))
 }
 
+# snowball with duplicates
+snowball_full  <- function(ID){
+  c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations)
+}
+
+# snowball connections
+snowball_connections <- function(ID){
+  f <- forward.search(ID) %>%
+    rename(from = ID, to = Forward_Citations) %>% 
+    mutate(direction = "forward")
+  b <- backward.search(ID) %>%
+    rename(from = ID, to = Backward_References) %>% 
+    mutate(direction = "backward")
+  as_tibble(rbind(b, f)) %>% select(from, to, direction)
+}
+
 ######################
 ## Scrape Functions ##
 ######################
@@ -172,7 +188,7 @@ pub.key <- function(Pub){
 
 scrape.tidy <- function(IDs){
   data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
-                   CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
+                 CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
   for (ID in IDs) {
     df <- scrape(ID)
     df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))

@@ -292,7 +292,8 @@ ui <- fluidPage(
       scale_x_continuous(breaks = seq(min(searched_data()$Year), max(searched_data()$Year), 10)) +
       labs(title = "Year Data", y = "Articles Found", fill = "Search Type") +
       geom_vline(aes(xintercept = median(input_data()$Year)), linetype = 2) + 
-      scale_fill_grey() + theme_bw()
+      scale_fill_manual(labels = c("forward", "backward"), values = c("grey20", "grey60")) +
+      theme_bw()
   })
   
   ## author summary
@@ -312,7 +313,8 @@ ui <- fluidPage(
                fill = fct_relevel(type, c("forward", "backward")))) +
       geom_col(color = 'white') +
       labs(title = "Author Data", x = 'Authors (Top 15)', y = "Count", fill = "Direction") +
-      coord_flip() + theme_bw() + scale_fill_manual(values = c("grey80", "grey20")) +
+      coord_flip() + theme_bw() +
+      scale_fill_manual(labels = c("forward", "backward"), values = c("grey20", "grey60")) +
       scale_y_continuous(breaks = pretty(1:max(author_data()$n_total)))
   })
   
@@ -386,7 +388,10 @@ ui <- fluidPage(
   })
   edges <- reactive({
     ledges <<- tibble(color = "skyblue", label = c("Forward", "Backward"), dashes = c(TRUE, FALSE))
-    mutate(network(), dashes = direction == "forward")
+    scale <- count(network(), from) %>% mutate(length = n^(4/7) * 25) %>% select(-n)
+    network() %>%
+      mutate(dashes = (direction == "forward")) %>% 
+      left_join(scale, by = "from")
   })
   ## graph aesthetics
   visnet <- reactive({
@@ -402,8 +407,8 @@ ui <- fluidPage(
       visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
       visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, selectedBy = "group",
                  width = "200%", height = "200%")
-    if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 200) {
-      showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 200)",
+    if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
+      showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 500)",
                             footer = NULL, easyClose = TRUE))
     }
     else {
