@@ -51,13 +51,16 @@ ui <- fluidPage(
                              textOutput("input_n", inline = TRUE),
                              verbatimTextOutput("input")),
                            br(),
-                           p("Papers found from backward references:",
+                           p("Backward references:",
                              textOutput("back_search", inline = TRUE)),
-                           p("Papers found from forward citations:",
+                           p("Forward citations:",
                              textOutput("frwd_search", inline = TRUE)),
-                           p("Unique papers found from forward/backward searches:",
+                           p("Total connections:",
+                             textOutput("total_connections", inline = TRUE)),
+                           br(),
+                           p("Unique papers found:",
                              textOutput("unq_found", inline = TRUE)),
-                           p("Total unique papers found (duplicates from uploaded IDs removed):",
+                           p("New papers found:",
                              textOutput("found_dup_rm", inline = TRUE))
                   ),
                   tabPanel("Input Data", 
@@ -131,6 +134,8 @@ ui <- fluidPage(
   ## forward search
   f.data <- reactive({forward.search(input_id())})
   output$frwd_search <- renderText({nrow(f.data())})
+  ## total connections
+  output$total_connections <- renderText({nrow(b.data()) + nrow(f.data())})
   ## unique list of IDs found from backward + forward
   found_original <- reactive({
     unique(c(b.data()$Backward_References, f.data()$Forward_Citations))
@@ -192,7 +197,7 @@ ui <- fluidPage(
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
-                                     "<br> <b>Papers searched:</b>", length(found()),
+                                     "<br> <b>Papers fetched:</b>", length(found()),
                                      "<br> <b>Papers failed to fetch:</b>", length(found()) - nrow(outputs),
                                      "<br>", paste(found()[!found() %in% outputs$ID], collapse = "<br>"))),
                           footer = NULL, easyClose = TRUE))
@@ -210,7 +215,7 @@ ui <- fluidPage(
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
-                                     "<br> <b>Papers searched:</b>", length(found()),
+                                     "<br> <b>Papers fetched:</b>", length(found()),
                                      "<br> <b>Papers failed to fetch:</b>", length(found()) - nrow(outputs),
                                      "<br>", paste(found()[!found() %in% outputs$ID], collapse = "<br>"))),
                           footer = NULL, easyClose = TRUE))
@@ -446,7 +451,9 @@ ui <- fluidPage(
       write.csv(bind_rows(mutate(screened_data(), Pub_type = as.character(Pub_type)),
                           as_tibble(cbind(Date = format(Sys.time(), "%a %b %d %X %Y"),
                                           Searched_from = paste(input_id(), collapse = ", "),
-                                          output_data()))),
+                                          output_data()))) %>% 
+                  select(Date, Searched_from, ID, Title, Year, Authors, Pub_type,
+                         Journal, DOI, Citations, References, Abstract),
                 file, row.names = FALSE)
     }
   )

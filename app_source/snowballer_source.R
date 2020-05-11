@@ -30,7 +30,7 @@ con <- dbConnect(SQLite(), "paper.db")
 title.strip <- function(title){tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))}
 
 title.search <- function(title){
-  searched <- ma_evaluate(query=paste0('Ti=', "'", title.strip(title), "'"),
+  searched <- ma_evaluate(query = paste0('Ti=', "'", title.strip(title), "'"),
                           atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
     select(-(1:2))
   if (nrow(searched) == 0) {tibble(Id = NA, Ti = title.strip(title))}
@@ -80,8 +80,8 @@ doi.search.tidy <- function(dois){
 
 # combined
 search.IDs <- function(df){
-  format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
-                   Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+  format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Pub_type = character(),
+                   Journal = character(), DOI = character(), Citations = numeric(), References = numeric())
   orig <- df
   df <- bind_rows(format, df %>% select(Title, DOI))
   for (i in 1:nrow(df)) {
@@ -106,8 +106,9 @@ PMID.info <- function(PMID, type = "pubmed"){
 }
 
 PMID.search <- function(PMIDs, type = "pubmed"){
-  format <- tibble(PMID = numeric(), ID = numeric(), Title = character(), Year = numeric(), Authors = character(),
-                   Journal = character(), Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+  format <- tibble(PMID = numeric(), ID = numeric(), Title = character(), Year = numeric(),
+                   Authors = character(), Journal = character(), Pub_type = character(),
+                   DOI = character(), Citations = numeric(), References = numeric())
   df <- tibble(PMID = numeric(), Title = character(), DOI = character())
   for (PMID in PMIDs) {
     PMinfo <- PMID.info(PMID, type = type)
@@ -153,7 +154,7 @@ snowball <- function(ID){
 }
 
 # snowball with duplicates
-snowball_full  <- function(ID){
+snowball_full <- function(ID){
   c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations)
 }
 
