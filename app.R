@@ -379,7 +379,7 @@ ui <- fluidPage(
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
     t <- rbind(tibble(id = unique(network()$from), group = "Snowballed"),
                tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "Newly Found"))
-    t$color.border <- "grey"
+    t$color.border <- "black"
     t[t$group == "Newly Found" & t$id %in% s,"group"] <- "Previously Found"
     hover_info <- fast.scrape(t$id) %>%
       mutate(title = paste0("<p><b>ID:</b> ", ID,
@@ -403,11 +403,11 @@ ui <- fluidPage(
     graph <- visNetwork(nodes(), edges()) %>%
       visLayout(randomSeed = 97) %>% 
       visPhysics(maxVelocity = 10, timestep = 1, enabled = FALSE) %>% 
-      visGroups(groupname = "Snowballed", color = "skyblue") %>%
-      visGroups(groupname = "Newly Found", color = "lightgreen") %>% 
+      visGroups(groupname = "Snowballed", color = "#006CD1") %>%
+      visGroups(groupname = "Newly Found", color = "#994F00") %>% 
       visGroups(groupname = "Previously Found", color = "lightgoldenrodyellow") %>% 
-      visNodes(color = list(border = "grey")) %>% 
-      visEdges(color = list(color = "skyblue")) %>% 
+      visNodes(color = list(border = "black")) %>% 
+      visEdges(color = list(color = "grey60")) %>% 
       visLegend(addEdges = ledges) %>% 
       visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
       visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, selectedBy = "group",
