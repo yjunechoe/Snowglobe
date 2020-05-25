@@ -154,12 +154,12 @@ snowball <- function(ID){
 }
 
 # snowball with duplicates
-snowball_full <- function(ID){
+snowball.full <- function(ID){
   c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations)
 }
 
 # snowball connections
-snowball_connections <- function(ID){
+snowball.connections <- function(ID){
   f <- forward.search(ID) %>%
     rename(from = ID, to = Forward_Citations) %>% 
     mutate(direction = "forward")
@@ -240,12 +240,12 @@ scrape.abst.DOI.cr <- function(DOIs) {
 }
 
 # local db search
-fast.scrape <- function(ID){
+quick.scrape <- function(ID){
   as_tibble(dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
     rename(ID = PaperID, Title = OriginalTitle, Pub_type = DocType, DOI = Doi)
 }
 
-fast.scrape.squish <- function(ID){
+quick.scrape.squish <- function(ID){
   res <- dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))
   res$DocType[is.na(res$DocType)] = "Unknown"
   as_tibble(res) %>%

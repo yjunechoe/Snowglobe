@@ -93,13 +93,14 @@ ui <- fluidPage(
 
  server <- function(input, output) {
   
-  # read in papers to find IDs for
+  # Read in papers to find IDs for
   to_find_papers <- reactive({
     if(is.null(input$to_find)) return (NULL)
     if(file.exists(input$to_find$datapath)){
       read_csv(input$to_find$datapath)
     } else {return(NULL)}
   })
+  ## Get IDs function
   found_IDs <- reactive({
     if (!is.null(to_find_papers()$PMID)) {search.IDs(PMID.search(to_find_papers()$PMID))}
     else if (!is.null(to_find_papers()$PMCID)) {search.IDs(PMID.search(to_find_papers()$PMCID, type = "pmc"))}
@@ -107,49 +108,50 @@ ui <- fluidPage(
   })
   
   
-  # read in running list
+  # Read in running list of papers
   screened_data <- reactive({
     if(is.null(input$screened)) return (NULL)
     if(file.exists(input$screened$datapath)){
       read.csv(input$screened$datapath)
     } else {return(NULL)}
   })
+  ## Display # of papers read in
   output$searched_num <- renderText(nrow(screened_data()))
   
   
   # Search input setup
-  ## remove repeats
+  ## Remove duplicate snowball searches
   input_orig <- reactive({as.numeric(strsplit(input$input_id,', ')[[1]])})
   repeats <- reactive({as.numeric(unlist(str_split(paste(screened_data()$Searched_from, collapse = ", "), ", ")))})
   input_id <- reactive({unique(input_orig()[!input_orig() %in% repeats()])})
-  ## display IDs to search  
+  ## Display IDs to search  
   output$input <- renderText({input_id()})
   output$input_n <- renderText({length(input_id())})
   
   
-  # offline database search
-  ## backward search
+  # Local database search
+  ## Backward search
   b.data <- reactive({backward.search(input_id())})
   output$back_search <- renderText({nrow(b.data())})
-  ## forward search
+  ## Forward search
   f.data <- reactive({forward.search(input_id())})
   output$frwd_search <- renderText({nrow(f.data())})
-  ## total connections
+  ## Total connections
   output$total_connections <- renderText({nrow(b.data()) + nrow(f.data())})
-  ## unique list of IDs found from backward + forward
+  ## Total papers
   found_original <- reactive({
     unique(c(b.data()$Backward_References, f.data()$Forward_Citations))
   })
   output$unq_found <- renderText({length(found_original())})
-  ## remove duplicates
+  ## Duplicates removed from running list
   already_found <- reactive({found_original()[found_original() %in% screened_data()$ID]})
   found <- reactive({found_original()[!found_original() %in% screened_data()$ID]})
   output$found_dup_rm <- renderText({length(found())})
   
   
   
-  # online query
-  ## scrape input
+  # Online query
+  ## Scrape input data
   input_data <- eventReactive({c(input$do_search, input$do_quick_search)}, {
     showModal(modalDialog(paste("Fetching", length(input_id()), "paper(s)..."), footer=NULL))
     inputs <- scrape.tidy(input_id())
@@ -157,11 +159,11 @@ ui <- fluidPage(
     if (input$get_abstracts) {
       inputs <- inner_join(inputs, scrape.abst.ID(input_id()), by = "ID")
     } else {inputs <- inputs}
-    original_titles <- fast.scrape(input_id()) %>% select(ID, Title)
+    original_titles <- quick.scrape(input_id()) %>% select(ID, Title)
     inner_join(select(inputs, -Title), original_titles, by = "ID") %>% select(ID, Title, everything())
   })
   
-  # search setup
+  # Search display setup
   observeEvent(input$do_search, {
     to_display <<- "c"
     if (!input$MA_key == "") {Sys.setenv(MICROSOFT_ACADEMIC_KEY = input$MA_key)}
@@ -172,7 +174,7 @@ ui <- fluidPage(
     to_display <<- "q"
   })
   
-  # comprehensive search output
+  # Comprehensive search output
   output_data_c <- eventReactive(input$do_search, {
     showModal(modalDialog(paste("[Comprehensive Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
     tic <- Sys.time()
@@ -181,34 +183,36 @@ ui <- fluidPage(
       # MAG fetch
       outputs <- inner_join(outputs, scrape.abst.ID(found()), by = "ID")
       outputs <- mutate(outputs, Abstract = ifelse(grepl(Abstract, pattern = "[.]{3}$"), NA, Abstract)) # remove incomplete abstracts
-      # crossref fetch
+      # Crossref fetch (abstracts)
       for (i in which(!is.na(outputs$DOI) & is.na(outputs$Abstract))) {
         outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- cr_abstract(outputs[i,]$DOI)},
                                           error = function(cond){outputs[i,"Abstract"] <- NA})
       }
-      # scopus fetch
+      # Scopus fetch (abstracts)
       for (i in which(!is.na(outputs$DOI) & is.na(outputs$Abstract))) {
         outputs[i,"Abstract"] <- tryCatch({outputs[i,"Abstract"] <- ft_abstract(x = outputs[i,]$DOI,
                                                                                 from = "scopus", scopusopts = opts)$scopus[[1]]$abstract},
                                           error = function(cond){outputs[i,"Abstract"] <- NA})
       }
     }
-    original_titles <- fast.scrape(found()) %>% select(ID, Title)
+    original_titles <- quick.scrape(found()) %>% select(ID, Title)
     toc <- round(as.numeric(Sys.time() - tic, units = "secs"), 3)
+    # Search statistics dialogue box
     showModal(modalDialog(title = "Search Log",
                           HTML(paste("<b>Time taken:</b>", toc, paste0("seconds (", round(toc/60, 1), " minutes)"),
                                      "<br> <b>Papers fetched:</b>", length(found()),
                                      "<br> <b>Papers failed to fetch:</b>", length(found()) - nrow(outputs),
                                      "<br>", paste(found()[!found() %in% outputs$ID], collapse = "<br>"))),
                           footer = NULL, easyClose = TRUE))
+    # Return output
     inner_join(select(outputs, -Title), original_titles, by = "ID") %>% select(ID, Title, everything())
   })
   
-  ## quick search output
+  ## Quick search output
   output_data_q <- eventReactive(input$do_quick_search, {
     showModal(modalDialog(paste("[Quick Search] Fetching", length(found()), "paper(s)..."), footer=NULL))
     tic <- Sys.time()
-    outputs <- fast.scrape(found())
+    outputs <- quick.scrape(found())
     outputs <- tibble(ID = outputs$ID, Title = outputs$Title, Year = outputs$Year, Pub_type = outputs$Pub_type, DOI = outputs$DOI,
                       Authors = NA, Journal = NA, Citations = NA, References = NA)
     if (input$get_abstracts) {outputs <- inner_join(outputs, scrape.abst.ID(found()), by = "ID")} else {outputs$Abstract = NA}
@@ -222,14 +226,13 @@ ui <- fluidPage(
     outputs
   })
   
-  # converge
-  
+  # Converge
   output_data <- reactive({
     if (to_display == "q") {output_data_q() %>% select_if(function(x){!all(is.na(x))})}
     else if (to_display == "c") {output_data_c()}
   })
   
-  # DataTables
+  # DataTables display
   output$input_table <- renderDT(input_data(), class = "display compact")
   display_outdata <- reactive({
     if (input$to_output) {df <- screened_data()}
@@ -241,11 +244,12 @@ ui <- fluidPage(
     }
     df
   })
+  ## Display options
   output$output_table <- renderDT(display_outdata(), class = "display compact", selection = "single",
                                   options = list(pageLength = 25, lengthMenu = list(c(25, 50, 100, -1), 
                                                                                     c("25", "50", "100", "All"))))
   
-  # cells clickable
+  ## Cells clickable
   observeEvent(input$output_table_rows_selected, {
     paper_doi <- display_outdata()[input$output_table_rows_selected, "DOI"]
     if (!is.na(paper_doi)) {browseURL(paste0("https://doi.org/", paper_doi))}
@@ -255,8 +259,8 @@ ui <- fluidPage(
   
   
   
-  # results summary
-  ## setup
+  # Results summary
+  ## Data setup
   searched_data_original <- reactive({
     backwards_data <- output_data_c() %>%
       filter(ID %in% b.data()$Backward_References) %>% 
@@ -274,7 +278,7 @@ ui <- fluidPage(
     if (!is.null(nrow(overlap))) {s <- s[s$ID %in% overlap$ID,]$type = "both"} ; s
   })
   
-  ## skim summary
+  ## Skim summary
   output$skim <- renderPrint({
     showModal(modalDialog("Summarizing...", footer=NULL))
     my_skim <- skim_with(numeric = sfl(hist = NULL),
@@ -287,7 +291,7 @@ ui <- fluidPage(
     select(my_skim(skim_data), -c(n_missing, complete_rate))
   })
   
-  ## year summary
+  ## Year plot
   output$plot_year <- renderPlot({
     ggplot(searched_data(), aes(x = Year, fill = fct_relevel(type, "forward", "backward"))) +
       geom_rect(data = input_data(),
@@ -301,7 +305,7 @@ ui <- fluidPage(
       theme_bw()
   })
   
-  ## author summary
+  ## Author plot
   author_data <- reactive({
     a <- data.table(searched_data())[, list(Authors = unlist(strsplit(Authors, ", "))), by = type]
     total_count <- a %>% group_by(Authors) %>% count() %>% rename(n_total = n)
@@ -323,7 +327,7 @@ ui <- fluidPage(
       scale_y_continuous(breaks = pretty(1:max(author_data()$n_total)))
   })
   
-  ## journal summary
+  ## Journal plot
   journal_data <- reactive({
     searched_data() %>% filter(!is.na(Journal)) %>% 
       group_by(Journal) %>% count() %>% arrange(desc(n))
@@ -331,6 +335,7 @@ ui <- fluidPage(
   journal_plot_data <- reactive({
     journal_data()[1:min(15,nrow(journal_data())),]
   })
+  
   output$plot_journal <- renderPlot({
     removeModal()
     ggplot(journal_plot_data(), aes(x = fct_reorder(Journal, desc(n)), y = n)) +
@@ -340,9 +345,8 @@ ui <- fluidPage(
   })
   
   
-  
-  # network analysis for result output
-  ## full network
+  # Network analysis
+  ## Data
   network <- reactive({
     f <- f.data() %>%
       rename(from = ID, to = Forward_Citations) %>% 
@@ -352,15 +356,7 @@ ui <- fluidPage(
       mutate(direction = "backward")
     rbind(b, f)
   })
-  ## network between input and output
-  output_data_results <- reactive({
-    net <- network() %>% group_by(to) %>%
-      summarize(Density = length(unique(unlist(list(from)))),
-                Connections = paste(unique(unlist(list(from))), collapse = ", "))
-    res <- inner_join(output_data(), rename(net, ID = to), by = "ID")
-    cbind(Searched_from = paste(input_id(), collapse = ", "), res)
-  })
-  ## network between inputs
+  ## Network between inputs
   input_data_results <- reactive({
     net <- network() %>% filter(to %in% input_id()) %>% group_by(to) %>%
       summarize(Density = length(unique(unlist(list(from)))),
@@ -371,17 +367,26 @@ ui <- fluidPage(
     res[is.na(res$Connections),"Connections"] = ""
     cbind(Searched_from = "INPUT", res)
   })
+  ## Network between input and output
+  output_data_results <- reactive({
+    net <- network() %>% group_by(to) %>%
+      summarize(Density = length(unique(unlist(list(from)))),
+                Connections = paste(unique(unlist(list(from))), collapse = ", "))
+    res <- inner_join(output_data(), rename(net, ID = to), by = "ID")
+    cbind(Searched_from = paste(input_id(), collapse = ", "), res)
+  })
   
   
-  # network graph
-  ## graph setup
+  # Network graph
+  ## Data
   nodes <- reactive({
     s <- screened_data()$ID[!screened_data()$ID %in% input_id()]
     t <- rbind(tibble(id = unique(network()$from), group = "Snowballed"),
                tibble(id = unique(network()$to[!network()$to %in% network()$from]), group = "Newly Found"))
     t$color.border <- "black"
     t[t$group == "Newly Found" & t$id %in% s,"group"] <- "Previously Found"
-    hover_info <- fast.scrape(t$id) %>%
+    # Hover for paper info
+    hover_info <- quick.scrape(t$id) %>%
       mutate(title = paste0("<p><b>ID:</b> ", ID,
                             "<br><b>Title:</b> ", Title,
                             "<br><b>Year:</b> ", Year,
@@ -398,7 +403,7 @@ ui <- fluidPage(
       mutate(dashes = (direction == "forward")) %>% 
       left_join(scale, by = "from")
   })
-  ## graph aesthetics
+  ## VisNetwork
   visnet <- reactive({
     graph <- visNetwork(nodes(), edges()) %>%
       visLayout(randomSeed = 97) %>% 
@@ -412,6 +417,7 @@ ui <- fluidPage(
       visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
       visOptions(highlightNearest = list(enabled = TRUE), nodesIdSelection = TRUE, selectedBy = "group",
                  width = "200%", height = "200%")
+    # Physics options
     if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
       showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 500)",
                             footer = NULL, easyClose = TRUE))
@@ -423,19 +429,19 @@ ui <- fluidPage(
         visEdges(arrows = "to")}
     graph
   })
-  ## graph output
+  ## Graph Output
   output$visualnetwork <- renderVisNetwork({visnet()})
   
   
-  # download
-  ## download search results
+  # Download functions
+  ## Get ID results
   output$paperIDs <- downloadHandler(
     filename = function()  {"ID_list.csv"},
     content = function(file) {
       write_csv(found_IDs(), file)
     }
   )
-  ## download snowball results
+  ## Snowball search results
   output$downloadData <- downloadHandler(
     filename = function() {paste0("Snowball_Results", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
@@ -444,7 +450,7 @@ ui <- fluidPage(
                 file, row.names = FALSE)
     }
   )
-  ## download updated ID list
+  ## Updated ID list
   output$downloadUpdated <- downloadHandler(
     filename = function() {"Screened.csv"},
     content = function(file) {
@@ -457,12 +463,11 @@ ui <- fluidPage(
                 file, row.names = FALSE)
     }
   )
-  ## download visual network
+  ## Visual network
   output$downloadNetwork <- downloadHandler(
     filename = function() {paste0("Snowball_Network", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".html")},
     content = function(con) {visnet() %>% visSave(con)}
   )
-  
   
 }
 
