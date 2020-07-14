@@ -22,29 +22,6 @@ opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 # connect to database (paper.db file)
 con <- dbConnect(SQLite(), "paper.db")
 
-
-
-### mix of frontend/backend
-
-
-col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
-                   Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
-
-# ifelse null/na pipe
-"%||%" <- function(lhs, rhs) {
-  if (is.null(lhs)) rhs else lhs
-}
-
-# custom dialogue box
-search_tryCatch <- function(type, .f){
-  tryCatch(.f, error = function(e){
-    showModal(modalDialog(title = strong("ERROR: Search Failed"),
-                          glue("No paper with this {type} found."),
-                          footer = NULL, easyClose = TRUE))
-  })
-}
-
-
 #########################
 ## ID Search Functions ##
 #########################
@@ -70,18 +47,10 @@ title.search.tidy <- function(titles){
     df$AA <- ifelse(length(df$AA[[1]]) == 0, NA, paste(unique(unlist(df$AA)), collapse = ', '))
     data <- bind_rows(data, df)
   }
-  
-  data <- data %>%
+  data %>% 
     rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
            Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
-    mutate(Pub_type = pub.key(Pub_type))
-  
-  original_titles <- fast.scrape(data$ID) %>%
-    select(ID, Title)
-  
-  left_join(select(data, -Title), original_titles, by = "ID") %>%
-    select(ID, Title, everything())
+    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
 }
 
 # search ID by doi
@@ -103,64 +72,18 @@ doi.search.tidy <- function(dois){
     df$AA <- ifelse(length(df$AA[[1]]) == 0, NA, paste(unique(unlist(df$AA)), collapse = ', '))
     data <- bind_rows(data, df)
   }
-  
-  data <- data %>%
+  data %>% 
     rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
            Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
-    mutate(Pub_type = pub.key(Pub_type))
-  
-  original_titles <- fast.scrape(data$ID) %>%
-    select(ID, Title)
-  
-  left_join(select(data, -Title), original_titles, by = "ID") %>%
-    select(ID, Title, everything())
-}
-
-
-fill.template <- function(df){
-  
-  new <- col_format
-  
-  possibly_na <- function(f,x){
-    possibly(f, otherwise = NA)(x)
-  }
-  
-  df <- as_tibble(df) %>% 
-    modify(~ifelse(.x == "", NA, .x))
-  
-  for (i in 1:nrow(df)){
-    temp <- NA
-    
-    while (identical(temp, NA)){
-      if (!is.na(df[i,]$DOI)){
-        temp <- possibly_na(doi.search.tidy, df[i,]$DOI)
-      }
-      if (!is.na(df[i,]$Title)){
-        temp <- possibly_na(title.search.tidy, df[i,]$Title)
-      }
-      if (!is.null(df$PMID) && !is.na(df[i,]$PMID)){
-        PMID_info <- PMID.search(df[i,]$PMID)
-        temp <- possibly_na(doi.search.tidy, PMID_info[1,]$DOI)
-      }
-      if (identical(temp, NA)){
-        temp <- df[i,] %>% 
-          select(Title, DOI)
-      }
-    }
-    
-    new <- bind_rows(new, temp)
-  }
-  
-  new
-  # new %>% 
-  #   mutate(Title = map_chr(ID, ~possibly_na(orig.title, .x)))
+    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) 
 }
 
 # combined
 search.IDs <- function(df){
+  format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Pub_type = character(),
+                   Journal = character(), DOI = character(), Citations = numeric(), References = numeric())
   orig <- df
-  df <- bind_rows(col_format, df %>% select(Title, DOI))
+  df <- bind_rows(format, df %>% select(Title, DOI))
   for (i in 1:nrow(df)) {
     if (!is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {
       doi <- df[i, "DOI"]
@@ -231,12 +154,12 @@ snowball <- function(ID){
 }
 
 # snowball with duplicates
-snowball_full <- function(ID){
+snowball.full <- function(ID){
   c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations)
 }
 
 # snowball connections
-snowball_connections <- function(ID){
+snowball.connections <- function(ID){
   f <- forward.search(ID) %>%
     rename(from = ID, to = Forward_Citations) %>% 
     mutate(direction = "forward")
@@ -273,19 +196,11 @@ scrape.tidy <- function(IDs){
     df$AA <-  paste(unique(unlist(df$AA)), collapse = ', ')
     data <- bind_rows(data, df)
   }
-  
-  data <- data %>%
+  data %>%
     rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
            Pub_type = Pt, Citations = CC, References = RId) %>% 
     select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
     mutate(Pub_type = pub.key(Pub_type))
-  
-  original_titles <- fast.scrape(data$ID) %>%
-    select(ID, Title)
-  
-  left_join(select(data, -Title), original_titles, by = "ID") %>%
-    select(ID, Title, everything())
-  
 }
 
 # abstract
@@ -325,19 +240,15 @@ scrape.abst.DOI.cr <- function(DOIs) {
 }
 
 # local db search
-fast.scrape <- function(ID){
+quick.scrape <- function(ID){
   as_tibble(dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
     rename(ID = PaperID, Title = OriginalTitle, Pub_type = DocType, DOI = Doi)
 }
 
-fast.scrape.squish <- function(ID){
+quick.scrape.squish <- function(ID){
   res <- dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))
   res$DocType[is.na(res$DocType)] = "Unknown"
   as_tibble(res) %>%
     mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
     select(-DocType)
-}
-
-orig.title <- function(ID){
-  fast.scrape(ID)$Title
 }
