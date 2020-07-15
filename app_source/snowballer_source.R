@@ -28,7 +28,7 @@ con <- dbConnect(SQLite(), "paper.db")
 
 
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
-                   Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+                     Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
 
 # ifelse null/na pipe
 "%||%" <- function(lhs, rhs) {
