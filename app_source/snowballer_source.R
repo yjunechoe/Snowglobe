@@ -10,7 +10,8 @@ ipak <- function(pkg){
 }
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
-              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table")
+              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
+              "tidytext", "glue", "cleanNLP", "wordcloud2")
 ipak(packages)
 
 # microsoft academic API key

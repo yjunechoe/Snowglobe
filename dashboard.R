@@ -1,22 +1,15 @@
 library(shiny)
 library(shinydashboard)
-library(tidytext)
-library(glue)
-
-library(cleanNLP)
-library(wordcloud2)
-
+source('app_source/snowballer_source.R')
 
 cnlp_init_udpipe()
 
 options(shiny.maxRequestSize=500*1024^2)
 
-source('app_source/snowballer_source.R')
-
 
 ui <- dashboardPage(skin = "black",
                     
-  dashboardHeader(title = strong("Snowballer")),
+  dashboardHeader(title = "Snowballer"),
    
   dashboardSidebar(
     sidebarMenu(
@@ -311,10 +304,50 @@ server <- function(input, output) {
   template_searched <- reactive({
     if(!is.null(uploaded_template())){
 
-      showModal(modalDialog(glue("Looking up {nrow(uploaded_template())} paper(s)..."), footer=NULL))
+      show_modal_progress_line(text = glue("Looking up {nrow(uploaded_template())} paper(s)..."))
+      
       tic <- Sys.time()
       
-      result <- fill.template(uploaded_template())
+      
+      result <- col_format
+      
+      possibly_na <- function(f,x){
+        possibly(f, otherwise = NA)(x)
+      }
+      
+      df <- as_tibble(uploaded_template()) %>% 
+        modify(~ifelse(.x == "", NA, .x))
+      
+      for (i in 1:nrow(df)){
+        
+        update_modal_progress(
+          value = i / nrow(df),
+          text = glue("Progress: {i}/{nrow(df)} ({round(i / nrow(df), 2)*100}%)")
+        )
+        
+        temp <- NA
+        while (identical(temp, NA)){
+          if (!is.na(df[i,]$DOI)){
+            temp <- possibly_na(doi.search.tidy, df[i,]$DOI)
+          }
+          if (!is.na(df[i,]$Title)){
+            temp <- possibly_na(title.search.tidy, df[i,]$Title)
+          }
+          if (!is.null(df$PMID) && !is.na(df[i,]$PMID)){
+            PMID_info <- PMID.search(df[i,]$PMID)
+            temp <- possibly_na(doi.search.tidy, PMID_info[1,]$DOI)
+          }
+          if (identical(temp, NA)){
+            temp <- df[i,] %>% 
+              select(Title, DOI)
+          }
+        }
+        
+        result <- bind_rows(result, temp)
+      }
+      
+      remove_modal_progress()
+      
       toc <- Sys.time() - tic
       
       showModal(modalDialog(
@@ -328,6 +361,7 @@ server <- function(input, output) {
         footer = NULL, easyClose = TRUE))
       
       result
+      
     }
   })
   
