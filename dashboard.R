@@ -1,6 +1,14 @@
 library(shiny)
 library(shinydashboard)
+library(tidytext)
 library(glue)
+
+library(cleanNLP)
+library(wordcloud2)
+
+
+cnlp_init_udpipe()
+
 options(shiny.maxRequestSize=500*1024^2)
 
 source('app_source/snowballer_source.R')
@@ -8,7 +16,7 @@ source('app_source/snowballer_source.R')
 
 ui <- dashboardPage(skin = "black",
                     
-  dashboardHeader(title = "Snowballer 3.0"),
+  dashboardHeader(title = strong("Snowballer")),
    
   dashboardSidebar(
     sidebarMenu(
@@ -147,12 +155,10 @@ ui <- dashboardPage(skin = "black",
                     h3(strong("Search options"), align = "center"),
                     
                     checkboxInput("GetAbstracts", "Add Abstracts", FALSE),
-                    
-                    actionButton("QuickSearch",
-                                 label = "Quick Search (broken)"),
+
                     div(style = "margin-bottom:10px"),
                     actionButton("ComprehensiveSearch",
-                                 label = "Comprehensive Search"),
+                                 label = "Search"),
                     
                     
                     h3(strong("Search Info"), align = "center"),
@@ -174,11 +180,62 @@ ui <- dashboardPage(skin = "black",
       ),
       
       
+      
+      
+      tabItem(tabName = "ManualTab"
+              
+              
+              
+              
+              
+              
+              ),
+              
+      
               
               
       
-      tabItem(tabName = "ManualTab",
-              includeMarkdown("app_source/snowballer_manual.Rmd")),
+      tabItem(tabName = "StatisticsTab",
+              
+              fluidRow(
+                tabBox(id = "StatisticsTabset", width = 12, height = "750px",
+                         
+                       
+                      tabPanel(h3(strong(" Info ")), value = "Statistics Info"),
+                       
+                      
+                      tabPanel(h3(strong(" Word Cloud ")), value = "WordCloudTab",
+                               
+                               fluidRow(
+                                 
+                                 box(width = 2,
+                                     h2("hi"),
+                                     sliderInput("WordCloudSize", label = "Wordcloud Text Size",
+                                                 value = 0.5, min = 0.1, max = 1, step = 0.1)
+                                 ),
+                                 
+                                 box(width = 7,
+                                     wordcloud2Output("WordCloud")
+                                 ),
+                                 
+                                 box(width = 3,
+                                     dataTableOutput("WordTable")
+                                 )
+                                 
+                               )
+                      ),
+                      
+                      
+                      tabPanel(h3(strong(" Network Visualization ")), value = "NetworkVizTab",
+                               visNetworkOutput("visualnetwork"))
+                  
+                  
+                )
+                
+                
+              )
+              
+      ),
       
       
       
@@ -260,14 +317,15 @@ server <- function(input, output) {
       result <- fill.template(uploaded_template())
       toc <- Sys.time() - tic
       
-      showModal(modalDialog(title = strong(glue("Lookup Complete - {round(toc[[1]], 2)} {units(toc)}
-                                                - {nrow(filter(result, is.na(ID)))} Failed to Find")),
-                            HTML(glue('Could not find {nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers.
-                                 <br> Try manually searching for them on the Microsoft Academic
-                                 {a("search engine", href="https://academic.microsoft.com/home")}.<br>
-                                 <br> If there are missing IDs, please fill them in for as many papers as you can find.
-                                 <br> Then, remove any papers with missing IDs from your running list.')),
-                            footer = NULL, easyClose = TRUE))
+      showModal(modalDialog(
+        title = strong(glue("Lookup Complete - {round(toc[[1]], 2)} {units(toc)}
+                             - {nrow(filter(result, is.na(ID)))} Failed to Find")),
+        HTML(glue('Could not find {nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers.
+                   <br> Try manually searching for them on the Microsoft Academic
+                   {a("search engine", href="https://academic.microsoft.com/home")}.<br>
+                   <br> If there are missing IDs, please fill them in for as many papers as you can find.
+                   <br> Then, remove any papers with missing IDs from your running list.')),
+        footer = NULL, easyClose = TRUE))
       
       result
     }
@@ -293,8 +351,9 @@ server <- function(input, output) {
   output$RunningListDownload <- downloadHandler(
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {write_csv(running_list() %>% 
-                                          mutate(Date = "Start", Searched_from = "Start") %>% 
-                                          select(Date, Searched_from, everything()) %>% 
+                                          mutate(Date = format(Sys.time(), "%a %b %d %X %Y"),
+                                                 Searched_from = "Start") %>% 
+                                          relocate(Date, Searched_from) %>% 
                                           mutate(Abstract = NA),
                                         file)}
   )
@@ -405,11 +464,12 @@ server <- function(input, output) {
     }
     
     if(sum(result$Citations, result$References, na.rm = T) > 1000){
-      showModal(modalDialog(title = strong("WARNING: High Density Paper"),
-                            HTML("Over 1000 connections (citations + references) were found for this paper.
-                                 <br>Including this paper in the search will make the search take a while.
-                                 <br>Make sure that you really do intend to snowball this paper!"),
-                            footer = NULL, easyClose = TRUE))
+      showModal(modalDialog(
+        title = strong("WARNING: High Density Paper"),
+        HTML("Over 1000 connections (citations + references) were found for this paper.
+              <br>Including this paper in the search will make the search take a while.
+              <br>Make sure that you really do intend to snowball this paper!"),
+        footer = NULL, easyClose = TRUE))
     }
     
     result
@@ -440,14 +500,16 @@ server <- function(input, output) {
   observeEvent(input$LookupPush, {
     lookup <- single_search_result()$ID
     if(lookup %in% data$staged$ID){
-      showModal(modalDialog(title = strong("ACTION BLOCKED: Paper Already Staged"),
-                            "Duplicates are not allowed.",
-                            footer = NULL, easyClose = TRUE))
+      showModal(modalDialog(
+        title = strong("ACTION BLOCKED: Paper Already Staged"),
+        "Duplicates are not allowed.",
+        footer = NULL, easyClose = TRUE))
     } else if(lookup %in% previously_snowballed()) {
-      showModal(modalDialog(title = strong("ACION BLOCKED: Paper Already Snowballed"),
-                            HTML("You have already snowballed this paper.<br>
-                                 Check the running list of IDs you uploaded in the <b>Setup</b> tab."),
-                            footer = NULL, easyClose = TRUE))
+      showModal(modalDialog(
+        title = strong("ACION BLOCKED: Paper Already Snowballed"),
+        HTML("You have already snowballed this paper.<br>
+             Check the running list of IDs you uploaded in the <b>Setup</b> tab."),
+        footer = NULL, easyClose = TRUE))
     } else {
       data$staged <- bind_rows(data$staged, single_search_result())
     }
@@ -471,10 +533,17 @@ server <- function(input, output) {
   
   
   
+  
+  
+  
   ### Search Connections (offline database ID search) ###
   
+  all_connections <- reactive({
+    snowball_connections(data$staged$ID)
+  })
+  
   unique_found <- reactive({
-    snowball(data$staged$ID)
+    unique(all_connections()$to)
   })
   
   previous <- reactive({
@@ -484,6 +553,9 @@ server <- function(input, output) {
   new <- reactive({
     unique_found()[!unique_found() %in% previous()]
   })
+  
+  
+  
   
   
   ### ValueBoxes ###
@@ -522,30 +594,6 @@ server <- function(input, output) {
   
   ### Search Options ###
   
-  
-  # quick_output <- eventReactive(input$QuickSearch, {
-  #   
-  #   showModal(modalDialog(glue("[Quick Search] Fetching {length(new())} paper(s)..."), footer=NULL))
-  #   tic <- Sys.time()
-  # 
-  #   result <- fast.scrape(new())
-  #   toc <- Sys.time() - tic
-  #   
-  #   if(input$GetAbstracts){
-  #     result <- result %>% 
-  #       mutate(Abstract = map_chr(ID, ~scrape.abst.ID(.x)$Abstract))
-  #   }
-  # 
-  #   showModal(modalDialog(title = strong(glue("Quick Search Complete - {round(toc[[1]], 2)} {units(toc)}")),
-  #                         HTML(glue('Input: {nrow(data$staged)} papers. <br>
-  #                                    Output: {nrow(result)} papers. <br>
-  #                                    Abstracts Failed to Find: {sum(is.na(result$Abstract))}')),
-  #                         footer = NULL, easyClose = TRUE))
-  # 
-  #   result
-  # 
-  # })
-  
   comprehensive_output <- eventReactive(input$ComprehensiveSearch, {
 
     showModal(modalDialog(glue("[Comprehensive Search] Fetching {length(new())} paper(s)..."), footer=NULL))
@@ -559,11 +607,12 @@ server <- function(input, output) {
         mutate(Abstract = map_chr(ID, ~scrape.abst.ID(.x)$Abstract))
     }
 
-    showModal(modalDialog(title = strong(glue("Comprehensive Search Complete - {round(toc[[1]], 2)} {units(toc)}")),
-                          HTML(glue('Input: {nrow(data$staged)} papers. <br>
-                                     Output: {nrow(result)} papers. <br>
-                                     Abstracts Failed to Find: {sum(is.na(result$Abstract))}')),
-                          footer = NULL, easyClose = TRUE))
+    showModal(modalDialog(
+      title = strong(glue("Comprehensive Search Complete - {round(toc[[1]], 2)} {units(toc)}")),
+      HTML(glue('Input: {nrow(data$staged)} papers. <br>
+                 Output: {nrow(result)} papers. <br>
+                 Abstracts Failed to Find: {sum(is.na(result$Abstract))}')),
+      footer = NULL, easyClose = TRUE))
 
     result
 
@@ -576,9 +625,10 @@ server <- function(input, output) {
   search_summary_txt <- eventReactive(input$LookupPush, {
     
     glue("There are {nrow(data$staged)} papers staged as inputs for this snowball search.
-         From these {nrow(data$staged)} inputs, {length(unique_found())} papers were detected, of which
-         {(length(unique_found()) - length(new())) %||% 0} were found to be duplicates after comparing with
-         the running list of {nrow(running_list()) %||% 0} papers that was uploaded in the Upload Runnign List tab.
+         From these {nrow(data$staged)} inputs, {length(unique_found())} papers were detected,
+         of which {(length(unique_found()) - length(new())) %||% 0} were found to be duplicates
+         after comparing with the running list of {nrow(running_list()) %||% 0} papers
+         that was uploaded in the Upload Runnign List tab.
          This search will return information for the {length(new())} new papers.")
   })
   
@@ -593,26 +643,11 @@ server <- function(input, output) {
   ### Display Output Table ###
   
   final_output <- reactive({
-
     comprehensive_output()
-    
-    # TODO: figure out switch between outputs
-    # comprehensive_output() %||% quick_output() %||% placeholder
-    
-  })
-  
-  
-  placeholder <- reactive({
-    if(input$GetAbstracts){
-      col_format %>% 
-        mutate(Abstract = NA)
-    } else {
-      col_format
-    }
   })
   
   output$OutputTable <- renderDataTable({
-    datatable(final_output() %||% placeholder(),
+    datatable(final_output(),
               extensions = 'Responsive')
   })
   
@@ -621,8 +656,6 @@ server <- function(input, output) {
     browseURL(paste0("https://academic.microsoft.com/paper/",
                      single_search_result()[input$LookupTable_rows_selected, "ID"]))
   })
-  
-  # TODO 6: DT for results - editable = TRUE & make rows clickable
   
   
   
@@ -647,17 +680,118 @@ server <- function(input, output) {
   ###########################
   
   
-  ## Summary Plots ##
+  ## Word Cloud ##
+
+  tokens <- reactive({
+    showModal(modalDialog(glue("Preparing..."), footer=NULL))
+    df <- final_output() %>% 
+      pull(Title) %>% 
+      cnlp_annotate() %>% 
+      pluck(1) %>% 
+      rename(Word = lemma) %>%
+      count(Word) %>% 
+      filter(str_detect(Word, "^[:alpha:][[:alpha:][:punct:]]*")) %>% 
+      filter(!Word %in% stop_words$word) %>% 
+      mutate(Word = ifelse(str_detect(Word, "^[A-Z]+$"), Word, tolower(Word))) %>% 
+      select(-n) %>% 
+      count(Word) %>% 
+      rename(Count = n) %>% 
+      arrange(desc(Count))
+    showModal(modalDialog("Complete!", footer=NULL, easyClose = TRUE))
+    
+    df
+  })
+    
+
+  output$WordTable <- renderDataTable({
+    datatable(tokens())
+  })
   
-  
-  ## Progress Line Plot ##
+  output$WordCloud <- renderWordcloud2({
+    tokens() %>% 
+      rename(word = Word, freq = Count) %>% 
+      wordcloud2(size = input$WordCloudSize)
+  })
   
   
   ## Network Visualization ##
   
+  nodes <- reactive({
+    bind_rows(
+      tibble(id = new(),
+             group = "Newly Found"),
+      tibble(id = unique_found()[unique_found() %in% previous()],
+             group = "Previously Found"),
+      tibble(id = data$staged$ID,
+             group = "Snowball Inputs")
+    ) %>% 
+      mutate(
+        color.border = "black",
+        info = map(id, fast.scrape),
+        title = map_chr(info,
+                        ~paste("<p><b>ID:</b>", .x$ID,
+                               "<br><b>Title:</b>", .x$Title,
+                               "<br><b>Year:</b>", .x$Year,
+                               "<br><b>DOI:</b>",
+                               if(!is.na(.x$DOI)){
+                                 a(.x$DOI, href=glue("https://doi.org/{.x$DOI}"))
+                               }else{NA},
+                               "<br><b>Publication Type</b>:", .x$Pub_type,
+                               if(.x$ID %in% running_list()$ID){
+                                 paste("<br><b>Date Found:</b>",
+                                       filter(running_list(), ID == .x$ID)$Date %>% 
+                                         str_extract("^\\w{3} \\w{3} \\d+"))
+                               }else{NULL},
+                               "</p>")
+        )
+      ) %>% 
+      select(-info)
+  })
   
-  ## Word Cloud ##
+  edges <- reactive({
+    all_connections() %>% 
+      add_count(from) %>% 
+      mutate(dashes = direction == "forward",
+             length = n^(4/7) * 25) %>% 
+      select(-n)
+  })
   
+  visnet <- reactive({
+    
+    showModal(modalDialog(glue("Preparing..."), footer=NULL))
+    
+    graph <- visNetwork(nodes(), edges()) %>%
+      visLayout(randomSeed = 97) %>% 
+      visPhysics(maxVelocity = 10, timestep = 1, enabled = FALSE) %>% 
+      visGroups(groupname = "Snowballed", color = "#7a89ce") %>%
+      visGroups(groupname = "Newly Found", color = "#f29886") %>% 
+      visGroups(groupname = "Previously Found", color = "#ece6cc") %>% 
+      visNodes(color = list(border = "black")) %>% 
+      visEdges(color = list(color = "grey60")) %>% 
+      visLegend(addEdges = tibble(color = "skyblue",
+                                  label = c("Forward", "Backward"),
+                                  dashes = c(TRUE, FALSE))) %>% 
+      visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
+      visOptions(highlightNearest = list(enabled = TRUE), width = "100%", height = "150%")
+    if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
+      showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 500)",
+                            footer = NULL, easyClose = TRUE))
+    }
+    else {
+      graph <- graph %>%
+        visPhysics(enabled = TRUE, stabilization = FALSE) %>% 
+        visInteraction(dragNodes = TRUE) %>% 
+        visEdges(arrows = "to")}
+    
+    showModal(modalDialog("Complete!", footer=NULL, easyClose = TRUE))
+    
+    graph
+  })
+  
+  output$visualnetwork <- renderVisNetwork({visnet()})
+  
+  
+
   
   
   ######################
