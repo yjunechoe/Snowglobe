@@ -59,8 +59,7 @@ ui <- dashboardPage(skin = "black",
                     
                     
                     h2(strong("First Search?"), align = "center"),
-                    br(),
-                    
+
                     h4(strong("If you are starting your project from scratch, skip to the Prepare Search tab.")),
                     br(),
                     
@@ -76,8 +75,8 @@ ui <- dashboardPage(skin = "black",
                     h4("3. Keep your processed running list."),
                     downloadButton("RunningListDownload", label = "Download Running List"),
 
-                    HTML("<br><br><h4>4. Fill in missing IDs where necessary and
-                         upload your edited running list of papers at the very top.</h4>")
+                    HTML("<br><br><h4>4. Manually search for and fill in missing IDs where necessary 
+                         and upload your edited running list of papers at the very top.</h4>")
                     
                     
                 ),
@@ -107,8 +106,8 @@ ui <- dashboardPage(skin = "black",
               fluidRow(
                 box(width = 12,
                     textInput("LookupInput",
-                              label = h4(strong("Look up a paper in the Microsoft Academic database:")),
-                              placeholder = "Enter a Title, DOI, Microsoft Academic ID, or Microsoft Academic page URL"),
+                              label = h4(strong("Look up a paper in the Microsoft Academic database")),
+                              placeholder = 'Enter a Title, DOI, or Microsoft Academic ID (if multiple IDs, separate by comma)'),
 
                     actionButton("LookupButton",
                                 label = "Search"),
@@ -123,7 +122,10 @@ ui <- dashboardPage(skin = "black",
               
               fluidRow(
                 box(width = 12,
-                    h3(strong("Staging Area"), align = "center"), br(),
+                    h3(strong("Staging Area"), align = "center"),
+                    
+                    div(actionButton("StageFromFile", "Stage Directly from File"),
+                        style = "float:right"), br(), 
                     
                     dataTableOutput("StagedTable"), br(),
                     
@@ -194,32 +196,30 @@ ui <- dashboardPage(skin = "black",
                 tabBox(id = "StatisticsTabset", width = 12, height = "750px",
                          
                        
-                      tabPanel(h3(strong(" Info ")), value = "Statistics Info"),
+                      tabPanel(value = "SummaryTab", h3(strong(" Summary "))),
                        
                       
-                      tabPanel(h3(strong(" Word Cloud ")), value = "WordCloudTab",
+                      tabPanel(value = "WordCloudTab", h3(strong(" Word Cloud ")),
                                
                                fluidRow(
                                  
-                                 box(width = 2,
-                                     h2("hi"),
-                                     sliderInput("WordCloudSize", label = "Wordcloud Text Size",
-                                                 value = 0.5, min = 0.1, max = 1, step = 0.1)
-                                 ),
-                                 
-                                 box(width = 7,
-                                     wordcloud2Output("WordCloud")
-                                 ),
-                                 
                                  box(width = 3,
+                                     sliderInput("WordCloudSize", label = "Adjust Text Size",
+                                                 value = 0.5, min = 0.1, max = 1, step = 0.1),
                                      dataTableOutput("WordTable")
+                                 ),
+                                 
+                                 box(width = 9,
+                                     h3(strong("Word Cloud from Titles"), align = "center"),
+                                     br(),
+                                     wordcloud2Output("WordCloud")
                                  )
                                  
                                )
                       ),
                       
                       
-                      tabPanel(h3(strong(" Network Visualization ")), value = "NetworkVizTab",
+                      tabPanel(value = "NetworkVizTab", h3(strong(" Network Visualization ")),
                                visNetworkOutput("visualnetwork"))
                   
                   
@@ -240,11 +240,13 @@ ui <- dashboardPage(skin = "black",
                     
                     # API key inputs
                     h3(strong("Set API keys"), align = "center"),
-                    textInput("MA_key", h4(strong("Microsoft Academic Key"), "<",
-                                           a("GET", href="https://msr-apis.portal.azure-api.net/products/project-academic-knowledge"), "> :"),
+                    textInput("MA_key",
+                              h4(strong("Microsoft Academic Key"), "<",
+                                 a("GET", href="https://msr-apis.portal.azure-api.net/products/project-academic-knowledge"), "> :"),
                               placeholder = "(Leave blank to use stored key)"),
-                    textInput("EL_key", h4(strong("Elsevier Key"), "<",
-                                           a("GET", href="https://dev.elsevier.com"), "> :"),
+                    textInput("EL_key", 
+                              h4(strong("Elsevier Key"), "<",
+                                 a("GET", href="https://dev.elsevier.com"), "> :"),
                               placeholder = "(Leave blank to use stored key)")
                 )
               )
@@ -304,7 +306,7 @@ server <- function(input, output) {
   template_searched <- reactive({
     if(!is.null(uploaded_template())){
 
-      show_modal_progress_line(text = glue("Looking up {nrow(uploaded_template())} paper(s)..."))
+      show_modal_progress_line(text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template..."))
       
       tic <- Sys.time()
       
@@ -322,7 +324,8 @@ server <- function(input, output) {
         
         update_modal_progress(
           value = i / nrow(df),
-          text = glue("Progress: {i}/{nrow(df)} ({round(i / nrow(df), 2)*100}%)")
+          text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template...  
+                      {i}/{nrow(df)} ({round(i / nrow(df), 2)*100}%)")
         )
         
         temp <- NA
@@ -478,20 +481,26 @@ server <- function(input, output) {
 
   
   # Look up paper
-  single_search_result <- eventReactive(input$LookupButton, {
+  lookup_result <- eventReactive(input$LookupButton, {
     search_input <- input$LookupInput
       
     result <- if(str_length(search_input) > 0){
         # MAG ID
-      if(str_detect(search_input, "^\\d+$")) {
-        search_tryCatch("Microsoft Academic ID", scrape.tidy(as.numeric(search_input)))
+      if(str_detect(search_input, "^\\d+((,)\\s+\\d+)*$")) {
+        IDs <- search_input %>% 
+          str_remove_all(",") %>% 
+          str_split("\\s+") %>% 
+          pluck(1) %>% 
+          as.numeric()
+        search_tryCatch("Microsoft Academic ID", scrape.tidy(IDs))
         # DOI
       } else if(str_detect(search_input, "10.\\d{4,9}/[-._;()/:a-z0-9A-Z]+")) {
         search_tryCatch("DOI", doi.search.tidy(search_input))
-        # Title
+        # URL
       } else if(str_detect(search_input, "academic.microsoft.com")){
         search_tryCatch("Microsoft Academic page URL",
                         scrape.tidy(as.numeric(str_extract(search_input, "(?<=paper.)\\d+(?=.reference)"))))
+        # Title
       } else {
         search_tryCatch("Title", title.search.tidy(search_input))
       }
@@ -512,46 +521,222 @@ server <- function(input, output) {
   
   # Display paper
   output$LookupTable <- renderDataTable({
-    datatable(single_search_result() %||% col_format,
+    datatable(lookup_result() %||% col_format,
               rownames = FALSE,
-              options = list(dom = 't'))
+              options = list(dom = 'rtip'))
   })
   
   # Click row for more info
   observeEvent(input$LookupTable_rows_selected, {
     browseURL(paste0("https://academic.microsoft.com/paper/",
-                     single_search_result()[input$LookupTable_rows_selected, "ID"]))
+                     lookup_result()[input$LookupTable_rows_selected, "ID"]))
   })
   
 
   
   ### Staging Area ###
   
+  
   # initialize empty df
   data <- reactiveValues(staged = col_format)
   
+  
   # Push handler
   observeEvent(input$LookupPush, {
-    lookup <- single_search_result()$ID
-    if(lookup %in% data$staged$ID){
+    lookup <- lookup_result()$ID
+    if(any(lookup %in% data$staged$ID)){
       showModal(modalDialog(
         title = strong("ACTION BLOCKED: Paper Already Staged"),
         "Duplicates are not allowed.",
         footer = NULL, easyClose = TRUE))
-    } else if(lookup %in% previously_snowballed()) {
+    } else if(any(lookup %in% previously_snowballed())) {
       showModal(modalDialog(
-        title = strong("ACION BLOCKED: Paper Already Snowballed"),
-        HTML("You have already snowballed this paper.<br>
-             Check the running list of IDs you uploaded in the <b>Setup</b> tab."),
+        title = strong("ACION BLOCKED: Paper Previously Snowballed"),
+        HTML("You have already snowballed this paper in your ongoing project.<br>
+             Double check the running list of IDs you uploaded in the <b>Setup</b> tab."),
         footer = NULL, easyClose = TRUE))
     } else {
-      data$staged <- bind_rows(data$staged, single_search_result())
+      data$staged <- bind_rows(data$staged, lookup_result())
     }
   })
   
+  
+  
+  #                                  #
+  #  Stage directly from file upload #
+  #                                  #
+  observeEvent(input$StageFromFile, {
+    showModal(modalDialog(
+      title = h3(strong("Stage Papers Directly"), align = 'center'),
+      HTML("<h4><b>Do you want to upload papers to snowball search in bulk?</b></h4>
+            Download the template below, fill it out as much as you can, then upload it back here.<br>"),
+      br(),
+      downloadButton("StagedTemplateDownload", label = "Download Template"),
+      fileInput(inputId = "FileToStage", ""),
+      textOutput("dummy"),
+      footer = NULL, easyClose = TRUE
+    ))
+  })
+  
+  # download template
+  output$StagedTemplateDownload <- downloadHandler(
+    filename = function() {"Template.csv"},
+    content = function(file) {
+      write_csv(tibble(Title = character(), DOI = character(),
+                       PMID = numeric()),
+                file)
+    }
+  )
+
+  # upload file to stage
+  staging_file <- reactive({
+    if(is.null(input$FileToStage)) return (NULL)
+    if(file.exists(input$FileToStage$datapath)){
+      read.csv(input$FileToStage$datapath)
+    } else {return(NULL)}
+  })
+  
+  # searching modal
+  staged_file_searched <- reactive({
+    if(!is.null(staging_file())){
+      
+      show_modal_progress_line(text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template..."))
+      
+      tic <- Sys.time()
+      
+      result <- col_format
+      for (i in 1:nrow(staging_file())){
+        
+        update_modal_progress(
+          value = i / nrow(staging_file()),
+          text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template...
+                      {i}/{nrow(staging_file())} ({round(i / nrow(staging_file()), 2)*100}%)")
+        )
+        
+        temp <- fill.template(staging_file()[i,])
+        
+        result <- bind_rows(result, temp)
+      }
+      
+      remove_modal_progress()
+      
+      toc <- Sys.time() - tic
+      
+      attr(result, "missing_rows") <- which(is.na(result$ID))
+      
+      showModal(modalDialog(
+        title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
+                             - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
+        HTML(glue('{nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers could not be found in the database
+                   and cannot be be staged. <br>
+                   Try manually searching for the missing papers on the Microsoft Academic
+                   {a("search engine", href="https://academic.microsoft.com/home")}.<br>
+                   If you find the page for the paper, enter its url into the search box to manually add it.<br><br>
+                   <b>After you finish reviewing any missing papers, PRESS THE BUTTON BELOW to
+                   push the uploaded papers to the staging area.</b><br><br>')),
+        div(actionButton("PushBulk", "Confirm"), style = "float:right"),
+        br(),br(),
+        h4(strong("Missing Papers"), align = "center"),
+        dataTableOutput("StagedMissing"),
+        footer = NULL, easyClose = TRUE))
+      
+      return(result)
+      
+    }
+  })
+
+  # This does nothing but the code breaks when I remove it
+  output$dummy <- renderText({
+    # DO NOT REMOVE - a weird piece in reactivity chain
+    dontbreak <- staging_file()[attr(staged_file_searched(), "missing_rows"),]
+    return(NULL)
+  })
+  
+  output$StagedMissing <- renderDataTable({
+    datatable(staging_file()[attr(staged_file_searched(), "missing_rows"),],
+              options = list(dom = 't'), rownames = FALSE)
+  })
+  
+  observeEvent(input$PushBulk, {
+    
+    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, uploaded_list()$ID)]
+    
+    dup_removed <- staged_file_searched()[-attr(staged_file_searched(), "missing_rows"),] %>% 
+      filter(!ID %in% dups)
+    
+    data$staged <- bind_rows(data$staged, dup_removed)
+    
+    showModal(modalDialog(
+      title = "Complete!",
+      HTML(glue("{nrow(dup_removed)} papers will be staged after removing {length(dups)} duplicates.<br>
+                Click on a row to individually remove a paper from the staging area.<br><br>
+                Proceed to the <b>Run Search</b> tab after reviewing your staged papers.")),
+      footer = NULL, easyClose = TRUE
+    ))
+    
+  })
+  
+# 
+#   # staged papers
+#   template_searched2 <- reactive({
+#     if(!is.null(staging_file())){
+# 
+#       show_modal_progress_line(text = glue("Staging {nrow(staging_file())} paper(s) from template..."))
+# 
+#       tic <- Sys.time()
+# 
+#       result <- col_format
+#       for (i in 1:nrow(staging_file())){
+# 
+#         update_modal_progress(
+#           value = i / nrow(staging_file()),
+#           text = glue("Staging {nrow(staging_file())} paper(s) from template...
+#                       {i}/{nrow(staging_file())} ({round(i / nrow(staging_file()), 2)*100}%)")
+#         )
+# 
+#         temp <- fill.template(staging_file()[i,])
+# 
+#         result <- bind_rows(result, temp)
+#       }
+# 
+#       remove_modal_progress()
+# 
+#       toc <- Sys.time() - tic
+# 
+#       showModal(modalDialog(
+#         title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
+#                              - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
+#         HTML(glue('Could not stage {nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers
+#                    because they could not be found in the database.
+#                    <br> Try manually searching for the missing papers on the Microsoft Academic
+#                    {a("search engine", href="https://academic.microsoft.com/home")}.<br>
+#                    If you find the page for the paper, enter the url into the search box above to manually add it.<br><br>')),
+#         strong("Missing papers:"),
+#         dataTableOutput({"MissingStagedPapers"}),
+#         footer = NULL, easyClose = TRUE))
+# 
+#       attr(result, "missing_rows") <- which(is.na(result$ID))
+# 
+# 
+#       result
+# 
+#     }
+#   })
+# 
+#   output$MissingStagedPapers <- renderDataTable({
+#     datatable(staging_file()[attr(template_searched2(), "missing_rows"),],
+#                options = list(dom = 't'), rownames = FALSE)
+#   })
+
+
+  
+  
+  
+  
+  
   # Display staged papers
   output$StagedTable <- renderDataTable({
-    datatable(data$staged)
+    datatable(data$staged, options = list(dom = 'rltip'))
   })
   
   # Click row to delete
@@ -629,23 +814,59 @@ server <- function(input, output) {
   ### Search Options ###
   
   comprehensive_output <- eventReactive(input$ComprehensiveSearch, {
-
-    showModal(modalDialog(glue("[Comprehensive Search] Fetching {length(new())} paper(s)..."), footer=NULL))
+  
     tic <- Sys.time()
+      
+    # paper info
+  
+    show_modal_progress_line(text = glue("Looking up information about {length(new())} paper(s)..."))
 
-    result <- scrape.tidy(new())
-    toc <- Sys.time() - tic
+    result <- imap_dfr(new(),
+                     ~{
+                       update_modal_progress(
+                         value = .y / length(new()),
+                         text = glue("Looking up information about {length(new())} paper(s)...  
+                                     {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
+                       )
+                       scrape.tidy(.x)
+                     })
+    
+    remove_modal_progress()
+    
+    
+    # abstract
     
     if(input$GetAbstracts){
+      
+      show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} paper(s)..."),
+                               color = "#796e5b")
+      
       result <- result %>% 
-        mutate(Abstract = map_chr(ID, ~scrape.abst.ID(.x)$Abstract))
+        mutate(Abstract = 
+                 imap_chr(ID,
+                          ~{
+                            update_modal_progress(
+                              value = .y / length(new()),
+                              text = glue("Fetching abstracts of {length(new())} paper(s)...  
+                                          {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
+                            )
+                            scrape.abst.ID(.x)$Abstract
+                          }
+                 ))
+      
+      remove_modal_progress()
+      
     }
 
+    
+    toc <- Sys.time() - tic
+    
+    
     showModal(modalDialog(
       title = strong(glue("Comprehensive Search Complete - {round(toc[[1]], 2)} {units(toc)}")),
       HTML(glue('Input: {nrow(data$staged)} papers. <br>
                  Output: {nrow(result)} papers. <br>
-                 Abstracts Failed to Find: {sum(is.na(result$Abstract))}')),
+                 Abstracts Failed to Fetch: {ifelse(input$GetAbstracts, sum(is.na(result$Abstract)), "Not Searched")}')),
       footer = NULL, easyClose = TRUE))
 
     result
@@ -681,14 +902,14 @@ server <- function(input, output) {
   })
   
   output$OutputTable <- renderDataTable({
-    datatable(final_output(),
+    datatable(final_output(), selection = 'single',
               extensions = 'Responsive')
   })
   
   # Click row for more info
   observeEvent(input$OutputTable_rows_selected, {
     browseURL(paste0("https://academic.microsoft.com/paper/",
-                     single_search_result()[input$LookupTable_rows_selected, "ID"]))
+                     final_output()[input$LookupTable_rows_selected, "ID"]))
   })
   
   
@@ -732,7 +953,6 @@ server <- function(input, output) {
       rename(Count = n) %>% 
       arrange(desc(Count))
     showModal(modalDialog("Complete!", footer=NULL, easyClose = TRUE))
-    
     df
   })
     
@@ -744,7 +964,8 @@ server <- function(input, output) {
   output$WordCloud <- renderWordcloud2({
     tokens() %>% 
       rename(word = Word, freq = Count) %>% 
-      wordcloud2(size = input$WordCloudSize)
+      wordcloud2(size = input$WordCloudSize,
+                 backgroundColor = "#f3f4f3")
   })
   
   
@@ -792,7 +1013,9 @@ server <- function(input, output) {
   
   visnet <- reactive({
     
-    showModal(modalDialog(glue("Preparing..."), footer=NULL))
+    showModal(modalDialog(
+      glue("Drawing a network with {nrow(nodes())} nodes and {nrow(edges())} edges"), footer=NULL)
+    )
     
     graph <- visNetwork(nodes(), edges()) %>%
       visLayout(randomSeed = 97) %>% 
@@ -802,15 +1025,18 @@ server <- function(input, output) {
       visGroups(groupname = "Previously Found", color = "#ece6cc") %>% 
       visNodes(color = list(border = "black")) %>% 
       visEdges(color = list(color = "grey60")) %>% 
-      visLegend(addEdges = tibble(color = "skyblue",
+      visLegend(addEdges = tibble(color = "grey60",
                                   label = c("Forward", "Backward"),
                                   dashes = c(TRUE, FALSE))) %>% 
       visInteraction(dragNodes = FALSE, keyboard = TRUE) %>% 
-      visOptions(highlightNearest = list(enabled = TRUE), width = "100%", height = "150%")
+      visOptions(highlightNearest = list(enabled = TRUE),
+                 width = "100%", height = "150%")
+    
     if (nrow(nodes()) > 1000 | max(count(edges(), from)$n) > 500) {
       showModal(modalDialog("WARNING: Network is too large (nodes > 1000) and/or too dense (degrees > 500)",
                             footer = NULL, easyClose = TRUE))
     }
+    
     else {
       graph <- graph %>%
         visPhysics(enabled = TRUE, stabilization = FALSE) %>% 
