@@ -18,7 +18,7 @@ ipak(packages)
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 # scopus api key // check remaining with `verbose = TRUE` argument
 Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186
-opts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
+scopusopts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 
 # connect to database (paper.db file)
 con <- dbConnect(SQLite(), "paper.db")
@@ -31,20 +31,10 @@ con <- dbConnect(SQLite(), "paper.db")
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                    Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
 
-# ifelse null/na pipe
+# ifelse null infix
 "%||%" <- function(lhs, rhs) {
   if (is.null(lhs)) rhs else lhs
 }
-
-# custom dialogue box
-search_tryCatch <- function(type, .f){
-  tryCatch(.f, error = function(e){
-    showModal(modalDialog(title = strong("ERROR: Search Failed"),
-                          glue("No paper with this {type} found."),
-                          footer = NULL, easyClose = TRUE))
-  })
-}
-
 
 #########################
 ## ID Search Functions ##
@@ -258,6 +248,7 @@ scrape <- function(ID){
   if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
 }
 
+# pubkey lookup table
 pub.key <- function(Pub){
   mapdf <- tibble(old = 0:8,
                   new = c("Unknown", "Journal Article", "Patent", "Conference",
