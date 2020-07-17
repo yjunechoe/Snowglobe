@@ -138,7 +138,7 @@ ui <- dashboardPage(skin = "black",
                     dataTableOutput("StagedTable"), br(),
                     
                     downloadButton("DownloadStaged",
-                                   label = "Download Staged Papers")
+                                   label = "Download Staged Papers (.csv)")
                     
                 )
               )
@@ -168,7 +168,7 @@ ui <- dashboardPage(skin = "black",
                     textOutput("search_summary_msg"), br(),
                     
                     downloadButton("DownloadOutput",
-                                   label = "Download Output")
+                                   label = "Download Output (.csv)")
 
                     
                 ),
@@ -395,12 +395,15 @@ server <- function(input, output) {
   # Download running list
   output$RunningListDownload <- downloadHandler(
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
-    content = function(file) {write_csv(running_list() %>% 
-                                          mutate(Date = format(Sys.time(), "%a %b %d %X %Y"),
-                                                 Searched_from = "Start") %>% 
-                                          relocate(Date, Searched_from) %>% 
-                                          mutate(Abstract = NA),
-                                        file)}
+    content = function(file) {
+      df <- if(!is.null(running_list()$Date) & !is.null(running_list()$Searched_from)){running_list()}
+            else{running_list() %>% 
+                 mutate(Date = format(Sys.time(), "%a %b %d %X %Y"),
+                        Searched_from = "Start") %>% 
+                 relocate(Date, Searched_from) %>% 
+                 mutate(Abstract = NA)}
+      write_csv(df, file)
+    }
   )
   
   
@@ -580,9 +583,9 @@ server <- function(input, output) {
   
   
   
-  #                                  #
-  #  Stage directly from file upload #
-  #                                  #
+
+  ##  Stage directly from file upload ##
+  
   observeEvent(input$StageFromFile, {
     showModal(modalDialog(
       title = h3(strong("Stage Papers Directly"), align = 'center'),
@@ -697,6 +700,8 @@ server <- function(input, output) {
   
   
   
+  ## Staged Table ##
+  
   # Display staged papers
   output$StagedTable <- renderDataTable({
     datatable(data$staged, options = list(dom = 'rltip'))
@@ -712,9 +717,6 @@ server <- function(input, output) {
     filename = function() {paste0("Snowball_Staged", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {write_csv(data$staged, file)}
   )
-  
-  
-  
   
   
   
@@ -735,7 +737,6 @@ server <- function(input, output) {
   new <- reactive({
     unique_found()[!unique_found() %in% previous()]
   })
-  
   
   
   
@@ -764,9 +765,6 @@ server <- function(input, output) {
   
   
   
-  
-  
-  
   #################
   ##             ##
   ##   Run Tab   ##
@@ -774,7 +772,7 @@ server <- function(input, output) {
   #################
   
   
-  ### Search Options ###
+  ### Search ###
   
   comprehensive_output <- eventReactive(input$ComprehensiveSearch, {
   
@@ -876,7 +874,7 @@ server <- function(input, output) {
 
   
   
-  ### Search Summary ###
+  ### Search summary dialogue ###
   
   search_summary_txt <- eventReactive(input$LookupPush, {
     
@@ -894,18 +892,34 @@ server <- function(input, output) {
   
   
   
+  ### Package up output ###
+  
+  final_output <- reactive({
+    # TODO incorporate quick search?
+    comprehensive_output() %>% 
+      mutate(Date = format(Sys.time(), "%a %b %d %X %Y"),
+             Searched_from = paste(data$staged$ID, collapse = ", ")) %>% 
+      relocate(Date, Searched_from) %>% 
+      mutate(Density = map_int(ID, ~sum(all_connections()$to == .x)),
+             Connections = map_chr(ID,
+                                   ~paste(all_connections()$from[all_connections()$to == .x],
+                                          collapse = ", "))) %>% 
+      arrange(-Density)
+  })
   
   
   ### Display Output Table ###
   
-  final_output <- reactive({
-    # TODO incorporate quick search?
-    comprehensive_output()
-  })
-  
   output$OutputTable <- renderDataTable({
-    datatable(final_output(), selection = 'single',
-              extensions = 'Responsive')
+    datatable(
+      final_output() %>%
+        select(-Date, -Searched_from) %>% 
+        relocate(Density, Connections, .after = References),
+      selection = 'single',
+      extensions = c('Responsive', 'FixedHeader'),
+      options = list(buttons = c('copy', 'csv', 'excel', 'print'),
+                     fixedHeader = TRUE)
+    )
   })
   
   # Click row to navigate to MAG page
