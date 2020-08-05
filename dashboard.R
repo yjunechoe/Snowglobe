@@ -516,7 +516,7 @@ server <- function(input, output) {
         search_tryCatch("Microsoft Academic ID", scrape.tidy(IDs))
         # DOI
       } else if(str_detect(search_input, "10.\\d{4,9}/[-._;()/:a-z0-9A-Z]+")) {
-        search_tryCatch("DOI", doi.search.tidy(search_input))
+        search_tryCatch("DOI", doi.search.tidy(toupper(search_input)))
         # URL
       } else if(str_detect(search_input, "academic.microsoft.com")){
         search_tryCatch("Microsoft Academic page URL",
