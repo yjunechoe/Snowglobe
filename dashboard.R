@@ -9,267 +9,274 @@ options(shiny.maxRequestSize=500*1024^2)
 
 ui <- dashboardPage(skin = "black",
                     
-  dashboardHeader(title = "Snowballer"),
-   
-  dashboardSidebar(
-    sidebarMenu(
-      menuItem("Home", tabName = "HomeTab", icon = icon("home")),
-      menuItem("Upload Running List", tabName = "RunningListTab", icon = icon("list-alt")),
-      menuItem("Prepare Search", tabName = "PrepareTab", icon = icon("dashboard")),
-      menuItem("Run Search", tabName = "RunTab", icon = icon("project-diagram")),
-      menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
-      menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
-      menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
-      menuItem("About", tabName = "AboutTab", icon = icon("info"))
-    )
-  ),
-  
-  dashboardBody(
-    
-    
-    # Navigation prompt
-    tags$head(tags$script(HTML("
-        // Enable navigation prompt
-        window.onbeforeunload = function() {
-            return 'Your changes will be lost!';
-        };
-    "))),
-    
-    
-    
-    tabItems(
-      
-      
-      tabItem(tabName = "HomeTab",
-              box(h1("This is the home tab"))),
-      
-      
-      tabItem(tabName = "RunningListTab",
-              
-              
-              fluidRow(
-                valueBoxOutput("LastSearchValue", width = 3),
-                valueBoxOutput("SearchNumberValue", width = 3),
-                valueBoxOutput("PapersSnowballedValue", width = 3),
-                valueBoxOutput("PreviouslySearchedValue", width = 3)
-              ),
-              
-              
-              fluidRow(
-                
-                box(width = 3,
+                    dashboardHeader(title = "Snowballer"),
                     
+                    dashboardSidebar(
+                      sidebarMenu(
+                        menuItem("Home", tabName = "HomeTab", icon = icon("home")),
+                        menuItem("Upload Running List", tabName = "RunningListTab", icon = icon("list-alt")),
+                        menuItem("Prepare Search", tabName = "PrepareTab", icon = icon("dashboard")),
+                        menuItem("Run Search", tabName = "RunTab", icon = icon("project-diagram")),
+                        menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
+                        menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
+                        menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
+                        menuItem("About", tabName = "AboutTab", icon = icon("info"))
+                      )
+                    ),
                     
-                    h2(strong("Not Your First Search?"), align = "center"),
-                    fileInput("RunningList",
-                              h4(strong("Upload your running list of papers:"))),
-                    
-                    
-                    
-                    h2(strong("First Search?"), align = "center"),
-
-                    h4(strong("If you are starting your project from scratch, skip to the Prepare Search tab.")),
-                    br(),
-                    
-                    h4(strong("OR, if you have a list of papers you've found so far, follow these steps:")),
-                    br(),
-                    
-                    h4("1. Download the template below and fill it out much as possible."),
-                    downloadButton("RunningListTemplateDownload", label = "Download Template"),
-                    
-                    fileInput("RunningListTemplate",
-                              HTML("<br><h4>2. Upload it back here:</h4>")),
-                    
-                    h4("3. Keep your processed running list."),
-                    downloadButton("RunningListDownload", label = "Download Running List"),
-
-                    HTML("<br><br><h4>4. Manually search for and fill in missing IDs where necessary 
-                         and upload your edited running list of papers at the very top.</h4>")
-                    
-                    
-                ),
-                
-                box(width = 9,
-                    h3(strong("Running List"), align = "center"),
-                    dataTableOutput("UploadedTable")
-                    )
-              )
-              
-              
-              
-      ),
-      
-      
-
-      tabItem(tabName = "PrepareTab",
-              
-
-              fluidRow(
-                valueBoxOutput("StagedValue", width = 4),
-                valueBoxOutput("UniqueValue", width = 4),
-                valueBoxOutput("NewValue", width = 4)
-              ),
-              
-              
-              fluidRow(
-                box(width = 12,
-                    textInput("LookupInput",
-                              label = h4(strong("Look up a paper in the Microsoft Academic database")),
-                              placeholder = 'Enter a Title, DOI, or Microsoft Academic ID (if multiple IDs, separate by comma)'),
-
-                    actionButton("LookupButton",
-                                label = "Search"),
-                    
-                    dataTableOutput("LookupTable"), br(),
-                    
-                    actionButton("LookupPush",
-                                 label = "Push to Staging Area")
-                )
-              ),
-              
-              
-              fluidRow(
-                box(width = 12,
-                    h3(strong("Staging Area"), align = "center"),
-                    
-                    div(actionButton("StageFromFile", "Stage Directly from File"),
-                        style = "float:right"), br(), 
-                    
-                    dataTableOutput("StagedTable"), br(),
-                    
-                    downloadButton("DownloadStaged",
-                                   label = "Download Staged Papers (.csv)")
-                    
-                )
-              )
-              
-      ),
-      
-      
-      
-      
-      
-      tabItem(tabName = "RunTab",
-              
-              fluidRow(
-                
-                box(width = 3,
-                    
-                    h3(strong("Search options"), align = "center"),
-                    
-                    checkboxInput("GetAbstracts", "Add Abstracts", FALSE),
-
-                    div(style = "margin-bottom:10px"),
-                    actionButton("ComprehensiveSearch",
-                                 label = "Search"),
-                    
-                    
-                    h3(strong("Search Info"), align = "center"),
-                    textOutput("search_summary_msg"), br(),
-                    
-                    downloadButton("DownloadOutput",
-                                   label = "Download Output (.csv)")
-
-                    
-                ),
-                
-                
-                box(width = 9,
-                    h2(strong("Search Output"), align = "center"),
-                    dataTableOutput("OutputTable")
-                    
-                )
-              )
-      ),
-      
-      
-      
-      
-      tabItem(tabName = "ManualTab"
-              
-              
-              
-              
-              
-              
-              ),
-              
-      
-              
-              
-      
-      tabItem(tabName = "StatisticsTab",
-              
-              fluidRow(
-                tabBox(id = "StatisticsTabset", width = 12, height = "750px",
-                         
-                       
-                      tabPanel(value = "SummaryTab", h4(strong(" Summary "))),
-                       
-                      
-                      tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
-                               
-                               fluidRow(
-                                 
-                                 box(width = 3,
-                                     sliderInput("WordCloudSize", label = "Adjust Text Size",
-                                                 value = 0.5, min = 0.1, max = 1, step = 0.1),
-                                     dataTableOutput("WordTable")
-                                 ),
-                                 
-                                 box(width = 9,
-                                     h3(strong("Word Cloud from Titles"), align = "center"),
-                                     br(),
-                                     wordcloud2Output("WordCloud")
-                                 )
-                                 
-                               )
-                      ),
+                    dashboardBody(
                       
                       
-                      tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
-                               visNetworkOutput("visualnetwork"))
-                  
-                  
-                )
-                
-                
-              )
-              
-      ),
-      
-      
-      
-      
-      tabItem(tabName = "SettingsTab",
-              
-              fluidRow(
-                box(width = 4,
-                    
-                    # API key inputs
-                    h3(strong("Set API keys"), align = "center"),
-                    textInput("MA_key",
-                              h4(strong("Microsoft Academic Key"), "<",
-                                 a("GET", href="https://msr-apis.portal.azure-api.net/products/project-academic-knowledge"), "> :"),
-                              placeholder = "(Leave blank to use stored key)"),
-                    textInput("EL_key", 
-                              h4(strong("Elsevier Key"), "<",
-                                 a("GET", href="https://dev.elsevier.com"), "> :"),
-                              placeholder = "(Leave blank to use stored key)")
-                )
-              )
-              
-      )
-      
-      
-      
-    )
+                      # Navigation prompt
+                      tags$head(tags$script(HTML("
+                                                 // Enable navigation prompt
+                                                 window.onbeforeunload = function() {
+                                                 return 'Your changes will be lost!';
+                                                 };
+                                                 "))),  
+                      tabItems(
+                        tabItem(tabName = "HomeTab",
+                                h1("Welcome to Snowballer!"),
+                                    p("Snowballer is a program that assists with literature searching, using a technique called snowballing.
+                                       Snowballing has emerged as the", a(href = "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1283190/", "gold standard"), "for comprehensive literature reviews.
+                                       The process of snowballing takes all known relevant papers and searches through their references (which papers they cite)
+                                       and citations (which papers cite them). Doing this by hand is an extremely time-consuming process, and until now, there was no way to do this process in bulk.
+                                       Snowballer has several time-saving features such as automatic duplicate removal, as well as tracking which titles you have already screened."),  
+                                    p("There are a number of ways to use Snowballer, which are detailed below."),
+                                
+                                tags$ol(
+                                  tags$li("It is your first search and you have a list of titles, DOIs, or Pubmed IDs from a reference manager and want all forward and backward associated papers"),
+                                  tags$li("It is your first search and you would like to enter titles one by one from within the snowballer."),
+                                  tags$li("You have used snowballer in the past and you have a list of already screened titles and would like to add more inputs to your search"))
+                            
+                                
+                                ),
     
-  )
-)
+                    
+                        tabItem(tabName = "RunningListTab",
+                                
+                                
+                                fluidRow(
+                                  valueBoxOutput("LastSearchValue", width = 3),
+                                  valueBoxOutput("SearchNumberValue", width = 3),
+                                  valueBoxOutput("PapersSnowballedValue", width = 3),
+                                  valueBoxOutput("PreviouslySearchedValue", width = 3)
+                                ),
+                                
+                                
+                                fluidRow(
+                                  
+                                  box(width = 3,
+                                      
+                                      
+                                      h2(strong("Not Your First Search?"), align = "center"),
+                                      fileInput("RunningList",
+                                                h4(strong("Upload your running list of papers:"))),
+                                      
+                                      
+                                      
+                                      h2(strong("First Search?"), align = "center"),
+                                      
+                                      h4(strong("If you are starting your project from scratch, skip to the Prepare Search tab.")),
+                                      br(),
+                                      
+                                      h4(strong("OR, if you have a list of papers you've found so far, follow these steps:")),
+                                      br(),
+                                      
+                                      h4("1. Download the template below and fill it out much as possible."),
+                                      downloadButton("RunningListTemplateDownload", label = "Download Template"),
+                                      
+                                      fileInput("RunningListTemplate",
+                                                HTML("<br><h4>2. Upload it back here:</h4>")),
+                                      
+                                      h4("3. Keep your processed running list."),
+                                      downloadButton("RunningListDownload", label = "Download Running List"),
+                                      
+                                      HTML("<br><br><h4>4. Manually search for and fill in missing IDs where necessary 
+                                           and upload your edited running list of papers at the very top.</h4>")
+                                      
+                                      
+                                      ),
+                                  
+                                  box(width = 9,
+                                      h3(strong("Running List"), align = "center"),
+                                      dataTableOutput("UploadedTable")
+                                  )
+                                )
+                                
+                                
+                                
+                        ),
+                        
+                        
+                        
+                        tabItem(tabName = "PrepareTab",
+                                
+                                
+                                fluidRow(
+                                  valueBoxOutput("StagedValue", width = 4),
+                                  valueBoxOutput("UniqueValue", width = 4),
+                                  valueBoxOutput("NewValue", width = 4)
+                                ),
+                                
+                                
+                                fluidRow(
+                                  box(width = 12,
+                                      textInput("LookupInput",
+                                                label = h4(strong("Look up a paper in the Microsoft Academic database")),
+                                                placeholder = 'Enter a Title, DOI, or Microsoft Academic ID (if multiple IDs, separate by comma)'),
+                                      
+                                      actionButton("LookupButton",
+                                                   label = "Search"),
+                                      
+                                      dataTableOutput("LookupTable"), br(),
+                                      
+                                      actionButton("LookupPush",
+                                                   label = "Push to Staging Area")
+                                  )
+                                ),
+                                
+                                
+                                fluidRow(
+                                  box(width = 12,
+                                      h3(strong("Staging Area"), align = "center"),
+                                      
+                                      div(actionButton("StageFromFile", "Stage Directly from File"),
+                                          style = "float:right"), br(), 
+                                      
+                                      dataTableOutput("StagedTable"), br(),
+                                      
+                                      downloadButton("DownloadStaged",
+                                                     label = "Download Staged Papers (.csv)")
+                                      
+                                  )
+                                )
+                                
+                        ),
+                        
+                        
+                        
+                        
+                        
+                        tabItem(tabName = "RunTab",
+                                
+                                fluidRow(
+                                  
+                                  box(width = 3,
+                                      
+                                      h3(strong("Search options"), align = "center"),
+                                      
+                                      checkboxInput("GetAbstracts", "Add Abstracts", FALSE),
+                                      
+                                      div(style = "margin-bottom:10px"),
+                                      actionButton("ComprehensiveSearch",
+                                                   label = "Search"),
+                                      
+                                      
+                                      h3(strong("Search Info"), align = "center"),
+                                      textOutput("search_summary_msg"), br(),
+                                      
+                                      downloadButton("DownloadOutput",
+                                                     label = "Download Output (.csv)")
+                                      
+                                      
+                                  ),
+                                  
+                                  
+                                  box(width = 9,
+                                      h2(strong("Search Output"), align = "center"),
+                                      dataTableOutput("OutputTable")
+                                      
+                                  )
+                                )
+                        ),
+                        
+                        
+                        
+                        
+                        tabItem(tabName = "ManualTab"
+                                
+                                
+                                
+                                
+                                
+                                
+                        ),
+                        
+                        
+                        
+                        
+                        
+                        tabItem(tabName = "StatisticsTab",
+                                
+                                fluidRow(
+                                  tabBox(id = "StatisticsTabset", width = 12, height = "750px",
+                                         
+                                         
+                                         tabPanel(value = "SummaryTab", h4(strong(" Summary "))),
+                                         
+                                         
+                                         tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
+                                                  
+                                                  fluidRow(
+                                                    
+                                                    box(width = 3,
+                                                        sliderInput("WordCloudSize", label = "Adjust Text Size",
+                                                                    value = 0.5, min = 0.1, max = 1, step = 0.1),
+                                                        dataTableOutput("WordTable")
+                                                    ),
+                                                    
+                                                    box(width = 9,
+                                                        h3(strong("Word Cloud from Titles"), align = "center"),
+                                                        br(),
+                                                        wordcloud2Output("WordCloud")
+                                                    )
+                                                    
+                                                  )
+                                         ),
+                                         
+                                         
+                                         tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
+                                                  visNetworkOutput("visualnetwork"))
+                                         
+                                         
+                                  )
+                                  
+                                  
+                                )
+                                
+                        ),
+                        
+                        
+                        
+                        
+                        tabItem(tabName = "SettingsTab",
+                                
+                                fluidRow(
+                                  box(width = 4,
+                                      
+                                      # API key inputs
+                                      h3(strong("Set API keys"), align = "center"),
+                                      textInput("MA_key",
+                                                h4(strong("Microsoft Academic Key"), "<",
+                                                   a("GET", href="https://msr-apis.portal.azure-api.net/products/project-academic-knowledge"), "> :"),
+                                                placeholder = "(Leave blank to use stored key)"),
+                                      textInput("EL_key", 
+                                                h4(strong("Elsevier Key"), "<",
+                                                   a("GET", href="https://dev.elsevier.com"), "> :"),
+                                                placeholder = "(Leave blank to use stored key)")
+                                  )
+                                )
+                                
+                        )
+                        
+                        
+                        
+                        )
+                      
+                      )
+                      )
 server <- function(input, output) {
-  
-  
   
   ######################
   ##                  ##
@@ -288,7 +295,7 @@ server <- function(input, output) {
       read.csv(input$RunningList$datapath)
     } else {return(NULL)}
   })
-
+  
   
   ### Running List Template ###
   
@@ -313,7 +320,7 @@ server <- function(input, output) {
   # search papers in template
   template_searched <- reactive({
     if(!is.null(uploaded_template())){
-
+      
       show_modal_progress_line(text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template..."))
       
       tic <- Sys.time()
@@ -334,7 +341,7 @@ server <- function(input, output) {
           value = i / nrow(df),
           text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template...  
                       {i}/{nrow(df)} ({round(i / nrow(df), 2)*100}%)")
-        )
+          )
         
         temp <- NA
         while (identical(temp, NA)){
@@ -363,12 +370,12 @@ server <- function(input, output) {
       
       showModal(modalDialog(
         title = strong(glue("Lookup Complete - {round(toc[[1]], 2)} {units(toc)}
-                             - {nrow(filter(result, is.na(ID)))} Failed to Find")),
+                            - {nrow(filter(result, is.na(ID)))} Failed to Find")),
         HTML(glue('Could not find {nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers.
-                   <br> Try manually searching for them on the Microsoft Academic
-                   {a("search engine", href="https://academic.microsoft.com/home")}.<br>
-                   <br> If there are missing IDs, please fill them in for as many papers as you can find.
-                   <br> Then, remove any papers with missing IDs from your running list.')),
+                  <br> Try manually searching for them on the Microsoft Academic
+                  {a("search engine", href="https://academic.microsoft.com/home")}.<br>
+                  <br> If there are missing IDs, please fill them in for as many papers as you can find.
+                  <br> Then, remove any papers with missing IDs from your running list.')),
         footer = NULL, easyClose = TRUE))
       
       result
@@ -376,8 +383,8 @@ server <- function(input, output) {
     }
   })
   
-
-
+  
+  
   
   ### Running List ###
   
@@ -397,11 +404,11 @@ server <- function(input, output) {
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
       df <- if(!is.null(running_list()$Date) & !is.null(running_list()$Searched_from)){running_list()}
-            else{running_list() %>% 
-                 mutate(Date = format(Sys.time(), "%a %b %d %X %Y"),
-                        Searched_from = "Start") %>% 
-                 relocate(Date, Searched_from) %>% 
-                 mutate(Abstract = NA)}
+      else{running_list() %>% 
+          mutate(Date = format(Sys.time(), "%a %b %d %X %Y"),
+                 Searched_from = "Start") %>% 
+          relocate(Date, Searched_from) %>% 
+          mutate(Abstract = NA)}
       write_csv(df, file)
     }
   )
@@ -415,10 +422,10 @@ server <- function(input, output) {
     } else {NULL}
     
     dt <- datatable(running_list() %||% tibble(` ` = numeric()),
-              extensions = c('Responsive', 'RowGroup'),
-              options = list(scrollX = TRUE,
-                             rowGroup = rowgroup),
-              selection = 'none')
+                    extensions = c('Responsive', 'RowGroup'),
+                    options = list(scrollX = TRUE,
+                                   rowGroup = rowgroup),
+                    selection = 'none')
     
     if (!is.null(running_list())) {
       dt <- dt %>%
@@ -427,7 +434,7 @@ server <- function(input, output) {
     }
     
     dt
-      
+    
   })
   
   
@@ -489,7 +496,7 @@ server <- function(input, output) {
   
   
   ### Lookup Box ###
-
+  
   
   # Look up paper
   lookup_result <- eventReactive(input$LookupButton, {
@@ -504,9 +511,9 @@ server <- function(input, output) {
     }
     
     search_input <- input$LookupInput
-      
+    
     result <- if(str_length(search_input) > 0){
-        # MAG ID
+      # MAG ID
       if(str_detect(search_input, "^\\d+((,)\\s+\\d+)*$")) {
         IDs <- search_input %>% 
           str_remove_all(",") %>% 
@@ -531,8 +538,8 @@ server <- function(input, output) {
       showModal(modalDialog(
         title = strong("WARNING: High Density Paper"),
         HTML("Over 1000 connections (citations + references) were found for this paper.
-              <br>Including this paper in the search will make the search take a while.
-              <br>Make sure that you really do intend to snowball this paper!"),
+             <br>Including this paper in the search will make the search take a while.
+             <br>Make sure that you really do intend to snowball this paper!"),
         footer = NULL, easyClose = TRUE))
     }
     
@@ -553,7 +560,7 @@ server <- function(input, output) {
                      lookup_result()[input$LookupTable_rows_selected,]$ID))
   })
   
-
+  
   
   ### Staging Area ###
   
@@ -583,20 +590,20 @@ server <- function(input, output) {
   
   
   
-
+  
   ##  Stage directly from file upload ##
   
   observeEvent(input$StageFromFile, {
     showModal(modalDialog(
       title = h3(strong("Stage Papers Directly"), align = 'center'),
       HTML("<h4><b>Do you want to upload papers to snowball search in bulk?</b></h4>
-            Download the template below, fill it out as much as you can, then upload it back here.<br>"),
+           Download the template below, fill it out as much as you can, then upload it back here.<br>"),
       br(),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
       fileInput(inputId = "FileToStage", ""),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
-    ))
+      ))
   })
   
   # download template
@@ -608,7 +615,7 @@ server <- function(input, output) {
                 file)
     }
   )
-
+  
   # upload file to stage
   staging_file <- reactive({
     if(is.null(input$FileToStage)) return (NULL)
@@ -632,7 +639,7 @@ server <- function(input, output) {
           value = i / nrow(staging_file()),
           text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template...
                       {i}/{nrow(staging_file())} ({round(i / nrow(staging_file()), 2)*100}%)")
-        )
+          )
         
         temp <- fill.template(staging_file()[i,])
         
@@ -647,14 +654,14 @@ server <- function(input, output) {
       
       showModal(modalDialog(
         title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
-                             - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
+                            - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
         HTML(glue('{nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers could not be found in the database
-                   and cannot be be staged. <br>
-                   Try manually searching for the missing papers on the Microsoft Academic
-                   {a("search engine", href="https://academic.microsoft.com/home")}.<br>
-                   If you find the page for the paper, enter its url into the search box to manually add it.<br><br>
-                   <b>After you finish reviewing any missing papers, PRESS THE BUTTON BELOW to
-                   push the uploaded papers to the staging area.</b><br><br>')),
+                  and cannot be be staged. <br>
+                  Try manually searching for the missing papers on the Microsoft Academic
+                  {a("search engine", href="https://academic.microsoft.com/home")}.<br>
+                  If you find the page for the paper, enter its url into the search box to manually add it.<br><br>
+                  <b>After you finish reviewing any missing papers, PRESS THE BUTTON BELOW to
+                  push the uploaded papers to the staging area.</b><br><br>')),
         div(actionButton("PushBulk", "Confirm"), style = "float:right"),
         br(),br(),
         h4(strong("Missing Papers"), align = "center"),
@@ -665,7 +672,7 @@ server <- function(input, output) {
       
     }
   })
-
+  
   # This does nothing but the code breaks when I remove it
   output$dummy <- renderText({
     # DO NOT REMOVE - a weird piece in reactivity chain
@@ -694,7 +701,7 @@ server <- function(input, output) {
                 Click on a row to individually remove a paper from the staging area.<br><br>
                 Proceed to the <b>Run Search</b> tab after reviewing your staged papers.")),
       footer = NULL, easyClose = TRUE
-    ))
+      ))
     
   })
   
@@ -775,22 +782,22 @@ server <- function(input, output) {
   ### Search ###
   
   comprehensive_output <- eventReactive(input$ComprehensiveSearch, {
-  
+    
     tic <- Sys.time()
-      
+    
     # paper info
-  
+    
     show_modal_progress_line(text = glue("Looking up information about {length(new())} paper(s)..."))
-
+    
     result <- imap_dfr(new(),
-                     ~{
-                       update_modal_progress(
-                         value = .y / length(new()),
-                         text = glue("Looking up information about {length(new())} paper(s)...  
-                                     {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-                       )
-                       scrape.tidy(.x)
-                     })
+                       ~{
+                         update_modal_progress(
+                           value = .y / length(new()),
+                           text = glue("Looking up information about {length(new())} paper(s)...  
+                                       {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
+                           )
+                         scrape.tidy(.x)
+                       })
     
     remove_modal_progress()
     
@@ -811,7 +818,7 @@ server <- function(input, output) {
                               value = .y / length(new()),
                               text = glue("Fetching abstracts of {length(new())} paper(s)...  
                                           {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-                            )
+                              )
                             scrape.abst.ID(.x)$Abstract
                           }
                  ))
@@ -823,7 +830,7 @@ server <- function(input, output) {
       
       show_modal_progress_line(text = glue("Checking other sources for abstracts..."),
                                color = "#75795b")
-
+      
       tryCatchnull <- function(f){tryCatch(f, error = function(e){NULL})}
       
       missing <- which(!is.na(result$DOI) & (is.na(result$Abstract) | str_detect(result$Abstract, "[.]{3}$")))
@@ -846,12 +853,12 @@ server <- function(input, output) {
           tryCatchnull(ft_abstract(doi, from = "plos")$plos[[1]]$abstract) %||%
           tryCatchnull(ft_abstract(doi, from = "crossref")$crossref[[1]]$abstract) %||%
           tryCatchnull(ft_abstract(doi, from = "scopus", scopusopts = scopusopts)$scopus[[1]]$abstract)
-       
+        
         result[i,]$Abstract <- abstract %||% NA
-               
+        
       }
       
-    }
+                          }
     
     
     toc <- Sys.time() - tic
@@ -859,19 +866,19 @@ server <- function(input, output) {
     showModal(modalDialog(
       title = strong(glue("Search Complete - {round(toc[[1]], 2)} {units(toc)}")),
       HTML(glue('Input: {nrow(data$staged)} papers. <br>
-                 Output: {nrow(result)} papers. <br>
-                 Abstracts Failed to Fetch: {ifelse(input$GetAbstracts, sum(is.na(result$Abstract)), "Not Searched")} 
-                  {if(input$GetAbstracts){
-                    paste0(" (", round(nrow(filter(result, Pub_type == pub.key(1) & is.na(Abstract)))/
-                                       nrow(filter(result, Pub_type == pub.key(1))), 2),
-                          "% of Journal Articles)")
-                  }}')),
+                Output: {nrow(result)} papers. <br>
+                Abstracts Failed to Fetch: {ifelse(input$GetAbstracts, sum(is.na(result$Abstract)), "Not Searched")} 
+                {if(input$GetAbstracts){
+                paste0(" (", round(nrow(filter(result, Pub_type == pub.key(1) & is.na(Abstract)))/
+                nrow(filter(result, Pub_type == pub.key(1))), 2),
+                "% of Journal Articles)")
+                }}')),
       footer = NULL, easyClose = TRUE))
-
+    
     return(result)
-
+    
   })
-
+  
   
   
   ### Search summary dialogue ###
@@ -966,7 +973,7 @@ server <- function(input, output) {
   
   
   ## Word Cloud ##
-
+  
   tokens <- reactive({
     showModal(modalDialog(glue("Preparing..."), footer=NULL))
     df <- final_output() %>% 
@@ -985,8 +992,8 @@ server <- function(input, output) {
     removeModal()
     df
   })
-    
-
+  
+  
   output$WordTable <- renderDataTable({
     datatable(tokens(), options = list(dom = 'rtip'))
   })
@@ -1082,7 +1089,7 @@ server <- function(input, output) {
   output$visualnetwork <- renderVisNetwork({visnet()})
   
   # TODO - download network data? html?
-
+  
   
   
   ######################
@@ -1103,7 +1110,7 @@ server <- function(input, output) {
   
   
   
-}
+  }
 
 
 
