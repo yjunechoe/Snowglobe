@@ -29,7 +29,7 @@ con <- dbConnect(SQLite(), "paper.db")
 
 
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
-                   Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+                     Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
 
 # ifelse null infix
 "%||%" <- function(lhs, rhs) {
@@ -261,9 +261,11 @@ scrape.tidy <- function(IDs){
                  CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
   for (ID in IDs) {
     df <- scrape(ID)
-    df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
-    df$AA <-  paste(unique(unlist(df$AA)), collapse = ', ')
-    data <- bind_rows(data, df)
+    if(!is.null(df)){
+      df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
+      df$AA <-  paste(unique(unlist(df$AA)), collapse = ', ')
+      data <- bind_rows(data, df)
+    }
   }
   
   data <- data %>%
