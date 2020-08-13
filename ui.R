@@ -11,10 +11,10 @@ ui <- dashboardPage(skin = "black",
                     dashboardSidebar(
                       sidebarMenu(
                         menuItem("Home", tabName = "HomeTab", icon = icon("home")),
-                        menuItem("Upload Running List", tabName = "RunningListTab", icon = icon("list-alt")),
-                        menuItem("Stage Papers", tabName = "PrepareTab", icon = icon("dashboard")),
+                        menuItem("Prepare Search", tabName = "PrepareTab", icon = icon("dashboard")),
                         menuItem("Run Search", tabName = "RunTab", icon = icon("project-diagram")),
                         menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
+                        menuItem("Upload Running List", tabName = "RunningListTab", icon = icon("list-alt")),
                         menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
                         menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
                         menuItem("About", tabName = "AboutTab", icon = icon("info"))
@@ -73,46 +73,48 @@ ui <- dashboardPage(skin = "black",
                                 ),
                                 fluidRow(
                                   box(width = 12,
-                                      textInput("LookupInput",
-                                                label = h4(strong("Look up a paper in the Microsoft Academic database")),
-                                                placeholder = 'Enter a Title, DOI, or Microsoft Academic ID (if multiple IDs, separate by comma)'),
-                                      actionButton("LookupButton",
-                                                   label = "Search"),
-                                      dataTableOutput("LookupTable"), br(),
-                                      actionButton("LookupPush",
-                                                   label = "Push to Staging Area")
-                                  )
-                                ),
-                                fluidRow(
-                                  box(width = 12,
-                                      h3(strong("Staging Area"), align = "center"),
-                                      div(actionButton("StageFromFile", "Stage Directly from File"),
+                                      h3(strong("Papers to Search"), align = "center"),
+                                      div(actionButton("StageFromFile", "Upload List of Titles/DOI/PMID"),
                                           style = "float:right"), br(), 
                                       dataTableOutput("StagedTable"), br(),
                                       downloadButton("DownloadStaged",
-                                                     label = "Download Staged Papers (.csv)")
+                                                     label = "Download List of Papers to be Searched (.csv)")
+                                  )
+                                ),
+                                # fluidRow(
+                                #   box(width = 12,
+                                #       textInput("LookupInput",
+                                #                 label = h4(strong("Look up a paper in the Microsoft Academic database")),
+                                #                 placeholder = 'Enter a Title, DOI, or Microsoft Academic ID (if multiple IDs, separate by comma)'),
+                                #       actionButton("LookupButton",
+                                #                    label = "Search"),
+                                #       dataTableOutput("LookupTable"), br(),
+                                #       actionButton("LookupPush",
+                                #                    label = "Push to Staging Area")
+                                #   )
+                                # )
+                                fluidRow(
+                                  box(width = 12,
+                                      h3(strong("Search options"), align = "center"),
+                                      checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE)
                                   )
                                 )
                         ),
                         tabItem(tabName = "RunTab",
                                 fluidRow(
-                                  box(width = 3,
-                                      h3(strong("Search options"), align = "center"),
-                                      checkboxInput("GetAbstracts", "Add Abstracts", FALSE),
-                                      div(style = "margin-bottom:10px"),
+                                  box(width = 12,
+                                      h2(strong("Search Output"), align = "center"),
                                       actionButton("ComprehensiveSearch",
                                                    label = "Search"),
-                                      h3(strong("Search Info"), align = "center"),
                                       textOutput("search_summary_msg"), br(),
+                                      ## TODO: download updated running list
+                                      dataTableOutput("OutputTable")
+                                  ),
+                                  box(width = 12,
                                       h3(strong("Download"), align = "center"),
                                       downloadButton("DownloadOutput",
                                                      label = "Download Output (.csv)")
-                                      ## TODO: download updated running list
-                                  ),
-                                  box(width = 9,
-                                      h2(strong("Search Output"), align = "center"),
-                                      dataTableOutput("OutputTable")
-                                  )
+                                      )
                                 )
                         ),
                         tabItem(tabName = "ManualTab"),

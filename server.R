@@ -319,9 +319,8 @@ server <- function(input, output) {
   
   observeEvent(input$StageFromFile, {
     showModal(modalDialog(
-      title = h3(strong("Stage Papers Directly"), align = 'center'),
-      HTML("<h4><b>Do you want to upload papers to snowball search in bulk?</b></h4>
-           Download the template below, fill it out as much as you can, then upload it back here.<br>"),
+      title = h3(strong("Upload List To Be Searched"), align = 'center'),
+      HTML("Download the template below, fill it out as much as you can, then upload it back here.<br>"),
       br(),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
       fileInput(inputId = "FileToStage", ""),
@@ -478,7 +477,7 @@ server <- function(input, output) {
   output$StagedValue <- renderValueBox({
     valueBox(nrow(data$staged),
              color = "aqua",
-             subtitle = "Papers Staged")
+             subtitle = "Papers Ready to Search")
   })
   
   output$UniqueValue <- renderValueBox({
