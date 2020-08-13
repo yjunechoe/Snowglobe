@@ -1,13 +1,5 @@
 server <- function(input, output) {
   
-  ## Setup
-  
-  library(shiny)
-  library(shinydashboard)
-  source('app_source/snowballer_source.R')
-  
-  options(shiny.maxRequestSize=500*1024^2)
-  
   
   
   ######################
@@ -352,7 +344,7 @@ server <- function(input, output) {
   staging_file <- reactive({
     if(is.null(input$FileToStage)) return (NULL)
     if(file.exists(input$FileToStage$datapath)){
-      read.csv(input$FileToStage$datapath)
+      read_csv(input$FileToStage$datapath)
     } else {return(NULL)}
   })
   
@@ -421,8 +413,9 @@ server <- function(input, output) {
     
     dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, uploaded_list()$ID)]
     
-    dup_removed <- staged_file_searched()[-attr(staged_file_searched(), "missing_rows"),] %>% 
-      filter(!ID %in% dups)
+    dup_removed <- staged_file_searched() %>%
+      filter(!row_number() %in% attr(staged_file_searched(), "missing_rows"),
+             !ID %in% dups)
     
     # TODO - diff options for diff size connections (block action when 10,000+)
     data$staged <- bind_rows(data$staged, dup_removed)

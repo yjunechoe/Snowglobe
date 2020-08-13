@@ -1,3 +1,11 @@
+## Setup
+
+library(shiny)
+library(shinydashboard)
+source('app_source/snowballer_source.R')
+
+options(shiny.maxRequestSize=500*1024^2)
+
 ui <- dashboardPage(skin = "black",
                     dashboardHeader(title = "Snowballer"),
                     dashboardSidebar(
