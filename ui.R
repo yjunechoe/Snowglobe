@@ -14,7 +14,6 @@ ui <- dashboardPage(skin = "black",
                         menuItem("Prepare Search", tabName = "PrepareTab", icon = icon("dashboard")),
                         menuItem("Run Search", tabName = "RunTab", icon = icon("project-diagram")),
                         menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
-                        menuItem("Upload Running List", tabName = "RunningListTab", icon = icon("list-alt")),
                         menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
                         menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
                         menuItem("About", tabName = "AboutTab", icon = icon("info"))
@@ -32,38 +31,6 @@ ui <- dashboardPage(skin = "black",
                         tabItem(tabName = "HomeTab",
                                 includeMarkdown("app_source/snowballer_home.Rmd")
                                 
-                        ),
-                        tabItem(tabName = "RunningListTab",
-                                fluidRow(
-                                  valueBoxOutput("LastSearchValue", width = 3),
-                                  valueBoxOutput("SearchNumberValue", width = 3),
-                                  valueBoxOutput("PapersSnowballedValue", width = 3),
-                                  valueBoxOutput("PreviouslySearchedValue", width = 3)
-                                ),
-                                fluidRow(
-                                  box(width = 3,
-                                      h2(strong("Not Your First Search?"), align = "center"),
-                                      fileInput("RunningList",
-                                                h4(strong("Upload your running list of papers:"))),
-                                      h2(strong("First Search?"), align = "center"),
-                                      h4(strong("If you are starting your project from scratch, skip to the Prepare Search tab.")),
-                                      br(),
-                                      h4(strong("OR, if you have a list of papers you've found so far, follow these steps:")),
-                                      br(),
-                                      h4("1. Download the template below and fill it out much as possible."),
-                                      downloadButton("RunningListTemplateDownload", label = "Download Template"),
-                                      fileInput("RunningListTemplate",
-                                                HTML("<br><h4>2. Upload it back here:</h4>")),
-                                      h4("3. Keep your processed running list."),
-                                      downloadButton("RunningListDownload", label = "Download Running List"),
-                                      HTML("<br><br><h4>4. Manually search for and fill in missing IDs where necessary 
-                                           and upload your edited running list of papers at the very top.</h4>")
-                                  ),
-                                  box(width = 9,
-                                      h3(strong("Running List"), align = "center"),
-                                      dataTableOutput("UploadedTable")
-                                  )
-                                )
                         ),
                         tabItem(tabName = "PrepareTab",
                                 fluidRow(
@@ -96,9 +63,11 @@ ui <- dashboardPage(skin = "black",
                                 fluidRow(
                                   box(width = 12,
                                       h3(strong("Search options"), align = "center"),
-                                      checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE)
+                                      checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE),
+                                      HTML("<h5> Not your first search? Upload your already-searched titles here:</h5>"),
+                                      actionButton("RunningListFromFile", "Upload", style = "float:left"))
                                   )
-                                )
+                                
                         ),
                         tabItem(tabName = "RunTab",
                                 fluidRow(
@@ -113,7 +82,10 @@ ui <- dashboardPage(skin = "black",
                                   box(width = 12,
                                       h3(strong("Download"), align = "center"),
                                       downloadButton("DownloadOutput",
-                                                     label = "Download Output (.csv)")
+                                                     label = "Download Output (.csv)"),
+                                      downloadButton("RunningListDownload", label = "Download Running List"),
+                                      HTML("<br><br><h5>4. Manually search for and fill in missing IDs where necessary 
+                                           and upload your edited running list of papers at the very top.</h5>")
                                       )
                                 )
                         ),

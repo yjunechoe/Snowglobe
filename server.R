@@ -320,10 +320,24 @@ server <- function(input, output) {
   observeEvent(input$StageFromFile, {
     showModal(modalDialog(
       title = h3(strong("Upload List To Be Searched"), align = 'center'),
-      HTML("Download the template below, fill it out as much as you can, then upload it back here.<br>"),
+      HTML("
+           Download the template below, fill it out as much as you can, then upload it back here.<br>"),
       br(),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
       fileInput(inputId = "FileToStage", ""),
+      textOutput("dummy"),
+      footer = NULL, easyClose = TRUE
+    ))
+  })
+  
+  observeEvent(input$RunningListFromFile, {
+    showModal(modalDialog(
+      title = h3(strong("Upload Already-Searched Titles"), align = 'center'),
+      HTML("
+           Download the template below, fill it out as much as you can, then upload it back here.<br>"),
+      br(),
+      downloadButton("StagedTemplateDownload", label = "Download Template"),
+      fileInput(inputId = "RunningList", ""),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
     ))
