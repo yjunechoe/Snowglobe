@@ -137,6 +137,15 @@ server <- function(input, output) {
     }
   )
   
+  output$UpdatedRunningListDownload <- downloadHandler(
+    filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
+    content = function(file) {
+      #df <- rbind(running_list, final_output())
+      write_csv(df, file)
+    }
+  )
+  
+  
   
   # display table
   output$UploadedTable <- renderDataTable({
@@ -173,6 +182,12 @@ server <- function(input, output) {
   
   
   ### ValueBoxes ###
+  
+  output$ScreenedValue <- renderValueBox({
+    valueBox(length(running_list()),
+      color = "red",
+      subtitle = "Last Search")
+  })
   
   output$LastSearchValue <- renderValueBox({
     valueBox(
@@ -330,14 +345,15 @@ server <- function(input, output) {
     ))
   })
   
-  observeEvent(input$RunningListFromFile, {
+  observeEvent(input$RunningListOptions, {
     showModal(modalDialog(
       title = h3(strong("Upload Already-Searched Titles"), align = 'center'),
       HTML("
            Download the template below, fill it out as much as you can, then upload it back here.<br>"),
       br(),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
-      fileInput(inputId = "RunningList", ""),
+      fileInput(inputId = "RunningListTemplate", "From Database Search"),
+      fileInput(inputId = "RunningList", "From Previous Snowballer Searches"),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
     ))
@@ -487,6 +503,11 @@ server <- function(input, output) {
   
   
   ### ValueBoxes ###
+  output$ScreenedValue <- renderValueBox({
+    valueBox(nrow(running_list()),
+             color = "red",
+             subtitle = "Papers Already Screened")
+  })
   
   output$StagedValue <- renderValueBox({
     valueBox(nrow(data$staged),
@@ -497,7 +518,7 @@ server <- function(input, output) {
   output$UniqueValue <- renderValueBox({
     valueBox(length(unique_found()) - length(new()),
              color = "purple",
-             subtitle = "Previously-Found Papers Detected")
+             subtitle = "Previously-Found Papers")
   })
   
   output$NewValue <- renderValueBox({

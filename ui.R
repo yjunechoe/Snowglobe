@@ -34,9 +34,16 @@ ui <- dashboardPage(skin = "black",
                         ),
                         tabItem(tabName = "PrepareTab",
                                 fluidRow(
-                                  valueBoxOutput("StagedValue", width = 4),
-                                  valueBoxOutput("UniqueValue", width = 4),
-                                  valueBoxOutput("NewValue", width = 4)
+                                  valueBoxOutput("ScreenedValue", width = 3),
+                                  valueBoxOutput("StagedValue", width = 3),
+                                  valueBoxOutput("UniqueValue", width = 3),
+                                  valueBoxOutput("NewValue", width = 3)
+                                ),
+                                fluidRow(
+                                  box(width = 12,
+                                      h3(strong("Not Your First Search? Upload List of Previously-Screened Titles")),
+                                      actionButton("RunningListOptions", "Upload", style = "float:left"))
+                                  
                                 ),
                                 fluidRow(
                                   box(width = 12,
@@ -64,9 +71,9 @@ ui <- dashboardPage(skin = "black",
                                   box(width = 12,
                                       h3(strong("Search options"), align = "center"),
                                       checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE),
-                                      HTML("<h5> Not your first search? Upload your already-searched titles here:</h5>"),
-                                      actionButton("RunningListFromFile", "Upload", style = "float:left"))
+                                      HTML("<h5> Not your first search? Upload your already-searched titles here:</h5>")
                                   )
+                                )
                                 
                         ),
                         tabItem(tabName = "RunTab",
@@ -83,10 +90,7 @@ ui <- dashboardPage(skin = "black",
                                       h3(strong("Download"), align = "center"),
                                       downloadButton("DownloadOutput",
                                                      label = "Download Output (.csv)"),
-                                      downloadButton("RunningListDownload", label = "Download Running List"),
-                                      HTML("<br><br><h5>4. Manually search for and fill in missing IDs where necessary 
-                                           and upload your edited running list of papers at the very top.</h5>")
-                                      )
+                                      downloadButton("UpdatedRunningListDownload", label = "Download Running List"))
                                 )
                         ),
                         tabItem(tabName = "ManualTab"),
@@ -136,5 +140,5 @@ ui <- dashboardPage(skin = "black",
                                 )
                         )
                       )
-                    )
-)
+                      )
+                      )
