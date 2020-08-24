@@ -65,7 +65,7 @@ server <- function(input, output) {
           value = i / nrow(df),
           text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template...  
                       {i}/{nrow(df)} ({round(i / nrow(df), 2)*100}%)")
-        )
+          )
         
         temp <- NA
         while (identical(temp, NA)){
@@ -100,6 +100,7 @@ server <- function(input, output) {
                   {a("search engine", href="https://academic.microsoft.com/home")}.<br>
                   <br> If there are missing IDs, please fill them in for as many papers as you can find.
                   <br> Then, remove any papers with missing IDs from your running list.')),
+        downloadButton("RunningListDownload", "Download Formatted Running List"),
         footer = NULL, easyClose = TRUE))
       
       result
@@ -109,8 +110,11 @@ server <- function(input, output) {
   
   
   
-  
-  ### Running List ###
+  #####################
+  ##                 ##
+  ##   Running List  ##
+  ##                 ##
+  #####################
   
   # intermediate df
   running_list <- reactive({
@@ -140,7 +144,7 @@ server <- function(input, output) {
   output$UpdatedRunningListDownload <- downloadHandler(
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
-      #df <- rbind(running_list, final_output())
+      df <- full_join(running_list(), final_output())
       write_csv(df, file)
     }
   )
@@ -185,8 +189,8 @@ server <- function(input, output) {
   
   output$ScreenedValue <- renderValueBox({
     valueBox(length(running_list()),
-      color = "red",
-      subtitle = "Last Search")
+             color = "red",
+             subtitle = "Last Search")
   })
   
   output$LastSearchValue <- renderValueBox({
@@ -342,7 +346,7 @@ server <- function(input, output) {
       fileInput(inputId = "FileToStage", ""),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
-    ))
+      ))
   })
   
   observeEvent(input$RunningListOptions, {
@@ -356,7 +360,7 @@ server <- function(input, output) {
       fileInput(inputId = "RunningList", "From Previous Snowballer Searches"),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
-    ))
+      ))
   })
   
   # download template
@@ -392,7 +396,7 @@ server <- function(input, output) {
           value = i / nrow(staging_file()),
           text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template...
                       {i}/{nrow(staging_file())} ({round(i / nrow(staging_file()), 2)*100}%)")
-        )
+          )
         
         temp <- fill.template(staging_file()[i,])
         
@@ -455,7 +459,7 @@ server <- function(input, output) {
                 Click on a row to individually remove a paper from the staging area.<br><br>
                 Proceed to the <b>Run Search</b> tab after reviewing your staged papers.")),
       footer = NULL, easyClose = TRUE
-    ))
+      ))
     
   })
   
@@ -554,7 +558,7 @@ server <- function(input, output) {
                            value = .y / length(new()),
                            text = glue("Looking up information about {length(new())} paper(s)...  
                                        {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-                         )
+                           )
                          scrape.tidy(.x)
                        })
     
@@ -577,7 +581,7 @@ server <- function(input, output) {
                               value = .y / length(new()),
                               text = glue("Fetching abstracts of {length(new())} paper(s)...  
                                           {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-                            )
+                              )
                             scrape.abst.ID(.x)$Abstract
                           }
                  ))
@@ -617,7 +621,7 @@ server <- function(input, output) {
         
       }
       
-    }
+                          }
     
     
     toc <- Sys.time() - tic
@@ -869,4 +873,4 @@ server <- function(input, output) {
   })
   
   
-}
+  }
