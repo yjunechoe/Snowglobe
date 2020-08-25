@@ -1,12 +1,12 @@
 server <- function(input, output) {
   
   
-  
-  ######################
-  ##                  ##
-  ##   Progress Tab   ##
-  ##                  ##
-  ######################
+  #####################
+  ##                 ##
+  ##   Running List  ##
+  ##                 ##
+  ##################### 
+ 
   
   
   
@@ -109,13 +109,6 @@ server <- function(input, output) {
   })
   
   
-  
-  #####################
-  ##                 ##
-  ##   Running List  ##
-  ##                 ##
-  #####################
-  
   # intermediate df
   running_list <- reactive({
     uploaded_list() %||% template_searched()
@@ -141,6 +134,7 @@ server <- function(input, output) {
     }
   )
   
+  #from run tab output
   output$UpdatedRunningListDownload <- downloadHandler(
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     content = function(file) {
@@ -151,28 +145,28 @@ server <- function(input, output) {
   
   
   
-  # display table
-  output$UploadedTable <- renderDataTable({
-    
-    rowgroup <- if(!is_template()){
-      list(dataSrc = match("Date", names(running_list())))
-    } else {NULL}
-    
-    dt <- datatable(running_list() %||% tibble(` ` = numeric()),
-                    extensions = c('Responsive', 'RowGroup'),
-                    options = list(scrollX = TRUE,
-                                   rowGroup = rowgroup),
-                    selection = 'none')
-    
-    if (!is.null(running_list())) {
-      dt <- dt %>%
-        formatStyle('ID', target = 'row',
-                    backgroundColor = styleEqual(NA, 'LightCoral'))
-    }
-    
-    dt
-    
-  })
+  # display table - from v1 with "Running List Tab"
+  # output$UploadedTable <- renderDataTable({
+  #   
+  #   rowgroup <- if(!is_template()){
+  #     list(dataSrc = match("Date", names(running_list())))
+  #   } else {NULL}
+  #   
+  #   dt <- datatable(running_list() %||% tibble(` ` = numeric()),
+  #                   extensions = c('Responsive', 'RowGroup'),
+  #                   options = list(scrollX = TRUE,
+  #                                  rowGroup = rowgroup),
+  #                   selection = 'none')
+  #   
+  #   if (!is.null(running_list())) {
+  #     dt <- dt %>%
+  #       formatStyle('ID', target = 'row',
+  #                   backgroundColor = styleEqual(NA, 'LightCoral'))
+  #   }
+  #   
+  #   dt
+  #   
+  # })
   
   
   previously_snowballed <- reactive({
@@ -240,56 +234,67 @@ server <- function(input, output) {
   
   ### Lookup Box ###
   
-  
+#####
+  #temporarily deprecated
   # Look up paper
-  lookup_result <- eventReactive(input$LookupButton, {
-    
-    # search error message
-    search_tryCatch <- function(type, .f){
-      tryCatch(.f, error = function(e){
-        showModal(modalDialog(title = strong("ERROR: Search Failed"),
-                              glue("No paper with this {type} found."),
-                              footer = NULL, easyClose = TRUE))
-      })
-    }
-    
-    search_input <- input$LookupInput
-    
-    result <- if(str_length(search_input) > 0){
-      # MAG ID
-      if(str_detect(search_input, "^\\d+((,)\\s+\\d+)*$")) {
-        IDs <- search_input %>% 
-          str_remove_all(",") %>% 
-          str_split("\\s+") %>% 
-          pluck(1) %>% 
-          as.numeric()
-        search_tryCatch("Microsoft Academic ID", scrape.tidy(IDs))
-        # DOI
-      } else if(str_detect(search_input, "10.\\d{4,9}/[-._;()/:a-z0-9A-Z]+")) {
-        search_tryCatch("DOI", doi.search.tidy(toupper(search_input)))
-        # URL
-      } else if(str_detect(search_input, "academic.microsoft.com")){
-        search_tryCatch("Microsoft Academic page URL",
-                        scrape.tidy(as.numeric(str_extract(search_input, "(?<=paper.)\\d+(?=.reference)"))))
-        # Title
-      } else {
-        search_tryCatch("Title", title.search.tidy(search_input))
-      }
-    }
-    
-    if(sum(result$Citations, result$References, na.rm = T) > 1000){
-      showModal(modalDialog(
-        title = strong("WARNING: High Density Paper"),
-        HTML("Over 1000 connections (citations + references) were found for this paper.
-             <br>Including this paper in the search will make the search take a while.
-             <br>Make sure that you really do intend to snowball this paper!"),
-        footer = NULL, easyClose = TRUE))
-    }
-    
-    result
-    
-  }, ignoreNULL = FALSE)
-  
+  # lookup_result <- eventReactive(input$LookupButton, {
+  #   
+  #   # search error message
+  #   search_tryCatch <- function(type, .f){
+  #     tryCatch(.f, error = function(e){
+  #       showModal(modalDialog(title = strong("ERROR: Search Failed"),
+  #                             glue("No paper with this {type} found."),
+  #                             footer = NULL, easyClose = TRUE))
+  #     })
+  #   }
+  #   
+  #   search_input <- input$LookupInput
+  #   
+  #   result <- if(str_length(search_input) > 0){
+  #     # MAG ID
+  #     if(str_detect(search_input, "^\\d+((,)\\s+\\d+)*$")) {
+  #       IDs <- search_input %>% 
+  #         str_remove_all(",") %>% 
+  #         str_split("\\s+") %>% 
+  #         pluck(1) %>% 
+  #         as.numeric()
+  #       search_tryCatch("Microsoft Academic ID", scrape.tidy(IDs))
+  #       # DOI
+  #     } else if(str_detect(search_input, "10.\\d{4,9}/[-._;()/:a-z0-9A-Z]+")) {
+  #       search_tryCatch("DOI", doi.search.tidy(toupper(search_input)))
+  #       # URL
+  #     } else if(str_detect(search_input, "academic.microsoft.com")){
+  #       search_tryCatch("Microsoft Academic page URL",
+  #                       scrape.tidy(as.numeric(str_extract(search_input, "(?<=paper.)\\d+(?=.reference)"))))
+  #       # Title
+  #     } else {
+  #       search_tryCatch("Title", title.search.tidy(search_input))
+  #     }
+  #   }
+  #   
+  #   if(sum(result$Citations, result$References, na.rm = T) > 1000){
+  #     showModal(modalDialog(
+  #       title = strong("WARNING: High Density Paper"),
+  #       HTML("Over 1000 connections (citations + references) were found for this paper.
+  #            <br>Including this paper in the search will make the search take a while.
+  #            <br>Make sure that you really do intend to snowball this paper!"),
+  #       footer = NULL, easyClose = TRUE))
+  #     
+  #   }
+  #   if(result$Citations == 0 | result$References == 0){
+  #     showModal(modalDialog(
+  #       title = strong("WARNING: 0 Density Paper"),
+  #       HTML("There are no connections (citations + references) found for this paper.
+  #            <br> This is likely due to it being a recent paper and not having been udpated in the Microsoft Academic database.
+  #            <br>You should search this paper's references by hand."),
+  #       footer = NULL, easyClose = TRUE))
+  #   }
+  #   
+  #   
+  #   result
+  #   
+  # }, ignoreNULL = FALSE)
+  #####
   # Display paper
   output$LookupTable <- renderDataTable({
     datatable(lookup_result() %||% col_format,
@@ -331,9 +336,6 @@ server <- function(input, output) {
     }
   })
   
-  
-  
-  
   ##  Stage directly from file upload ##
   
   observeEvent(input$StageFromFile, {
@@ -347,6 +349,9 @@ server <- function(input, output) {
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
       ))
+    
+   
+    
   })
   
   observeEvent(input$RunningListOptions, {
@@ -408,6 +413,13 @@ server <- function(input, output) {
       toc <- Sys.time() - tic
       
       attr(result, "missing_rows") <- which(is.na(result$ID))
+      attr(result, "low_d") <- which(apply(result[,c("References", "Citations")], MARGIN = 2, FUN = sum, na.rm = T) > 1000)
+      attr(result, "high_d") <- which(result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
+      
+      
+      # result <- result %>%
+      #   mutate(high_d, sum(result$Citations, result$References, na.rm = T) > 1000) %>%
+      #   mutate(low_d, result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
       
       showModal(modalDialog(
         title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
@@ -416,14 +428,24 @@ server <- function(input, output) {
                   and cannot be be staged. <br>
                   Try manually searching for the missing papers on the Microsoft Academic
                   {a("search engine", href="https://academic.microsoft.com/home")}.<br>
-                  If you find the page for the paper, enter its url into the search box to manually add it.<br><br>
-                  <b>After you finish reviewing any missing papers, PRESS THE BUTTON BELOW to
+                  If you find the page for the paper, add it to your list of titles.<br><br>
+                  <b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
                   push the uploaded papers to the staging area.</b><br><br>')),
-        div(actionButton("PushBulk", "Confirm"), style = "float:right"),
+        HTML("<hr>Over 1000 connections (citations + references) were found for these papers.
+                  <br>Including this paper in the search will make the search take a while.
+                  <br>Make sure that you really do intend to snowball this paper! <br>"),
+           dataTableOutput("HighDensity"),
+               HTML("<hr>
+                    There are no connections (citations + references) found for these papers.
+                    <br> This is likely due to it being a recent paper and not having been udpated in the Microsoft Academic database.
+                    <br>You should search these papers' references by hand. <br>"),
+           dataTableOutput("LowDensity"),
         br(),br(),
         h4(strong("Missing Papers"), align = "center"),
         dataTableOutput("StagedMissing"),
+        div(actionButton("PushBulk", "Confirm"), style = "float:right"),
         footer = NULL, easyClose = TRUE))
+        
       
       return(result)
       
@@ -441,6 +463,17 @@ server <- function(input, output) {
     datatable(staging_file()[attr(staged_file_searched(), "missing_rows"),],
               options = list(dom = 't'), rownames = FALSE)
   })
+  
+  output$LowDensity <- renderDataTable({
+    datatable(staged_file_searched()[attr(staged_file_searched(), "low_d"),c("Title")],
+    options = list(dom = 't'), rownames = FALSE)
+  })
+  
+  output$HighDensity <- renderDataTable({
+    datatable(staged_file_searched()[attr(staged_file_searched(), "high_d"),c("Title")],
+              options = list(dom = 't'), rownames = FALSE)
+  })
+  
   
   observeEvent(input$PushBulk, {
     
