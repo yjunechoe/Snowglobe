@@ -484,7 +484,7 @@ server <- function(input, output) {
   
   observeEvent(input$PushBulk, {
     
-    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID)]
+    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, previously_snowballed())]
     
     dup_removed <- staged_file_searched() %>%
       filter(!row_number() %in% attr(staged_file_searched(), "missing_rows"),
