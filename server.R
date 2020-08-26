@@ -137,9 +137,16 @@ server <- function(input, output) {
   #from run tab output
   output$UpdatedRunningListDownload <- downloadHandler(
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
+    if(!is.null(running_list())){
     content = function(file) {
       df <- full_join(running_list(), final_output())
       write_csv(df, file)
+    }
+    } else {
+      content = function(file) {
+        df <- final_output()
+        write_csv(df, file)
+      }
     }
   )
   
@@ -477,7 +484,7 @@ server <- function(input, output) {
   
   observeEvent(input$PushBulk, {
     
-    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, uploaded_list()$ID)]
+    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID)]
     
     dup_removed <- staged_file_searched() %>%
       filter(!row_number() %in% attr(staged_file_searched(), "missing_rows"),
