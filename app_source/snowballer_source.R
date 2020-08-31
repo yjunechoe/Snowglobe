@@ -274,11 +274,14 @@ scrape.tidy <- function(IDs){
     select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
     mutate(Pub_type = pub.key(Pub_type))
   
-  original_titles <- fast.scrape(data$ID) %>%
-    select(ID, Title)
+  # Grab correctly formatted titles and merge
   
-  left_join(select(data, -Title), original_titles, by = "ID") %>%
-    select(ID, Title, everything())
+  original_titles <- fast.scrape(data$ID) %>% 
+    pull(Title)
+  
+  data %>% 
+    mutate(Title = coalesce(original_titles, Title)) %>% 
+    relocate(ID, Title)
   
 }
 
