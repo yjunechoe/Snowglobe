@@ -6,7 +6,7 @@ server <- function(input, output) {
   ##   Running List  ##
   ##                 ##
   ##################### 
- 
+  
   
   
   
@@ -138,10 +138,10 @@ server <- function(input, output) {
   output$UpdatedRunningListDownload <- downloadHandler(
     filename = function() {paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv")},
     if(!is.null(running_list())){
-    content = function(file) {
-      df <- full_join(running_list(), final_output())
-      write_csv(df, file)
-    }
+      content = function(file) {
+        df <- full_join(running_list(), final_output())
+        write_csv(df, file)
+      }
     } else {
       content = function(file) {
         df <- final_output()
@@ -241,7 +241,7 @@ server <- function(input, output) {
   
   ### Lookup Box ###
   
-#####
+  #####
   #temporarily deprecated
   # Look up paper
   # lookup_result <- eventReactive(input$LookupButton, {
@@ -357,19 +357,18 @@ server <- function(input, output) {
       footer = NULL, easyClose = TRUE
       ))
     
-   
+    
     
   })
   
   observeEvent(input$RunningListOptions, {
     showModal(modalDialog(
       title = h3(strong("Upload Already-Searched Titles"), align = 'center'),
-      HTML("
-           Download the template below, fill it out as much as you can, then upload it back here.<br>"),
-      br(),
+      HTML("First search? Download the template below, fill it out as much as you can, then upload it to be formatted<br>"),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
-      fileInput(inputId = "RunningListTemplate", "From Database Search"),
-      fileInput(inputId = "RunningList", "From Previous Snowballer Searches"),
+      fileInput(inputId = "RunningListTemplate", "From Database Search (to be Formatted)"),
+      HTML("Already have a running list from snowballer? Upload it here.<br>"),
+      fileInput(inputId = "RunningList", "Snowballer-Formatted Running List"),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
       ))
@@ -393,6 +392,7 @@ server <- function(input, output) {
     } else {return(NULL)}
   })
   
+
   # searching modal
   staged_file_searched <- reactive({
     if(!is.null(staging_file())){
@@ -420,10 +420,10 @@ server <- function(input, output) {
       toc <- Sys.time() - tic
       
       attr(result, "missing_rows") <- which(is.na(result$ID))
-      attr(result, "low_d") <- which(apply(result[,c("References", "Citations")], MARGIN = 2, FUN = sum, na.rm = T) > 1000)
-      attr(result, "high_d") <- which(result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
+      attr(result, "high_d") <- which(apply(result[,c("References", "Citations")], MARGIN = 2, FUN = sum, na.rm = T) > 1000)
+      attr(result, "low_d") <- which(result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
       
-      
+    
       # result <- result %>%
       #   mutate(high_d, sum(result$Citations, result$References, na.rm = T) > 1000) %>%
       #   mutate(low_d, result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
@@ -431,28 +431,28 @@ server <- function(input, output) {
       showModal(modalDialog(
         title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
                             - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
+                  HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
+                  push the uploaded papers to the staging area.</b><br><br>')),
+        h4(strong("High Density Papers"), align = "center"),
+        HTML("Over 1000 connections (citations + references) were found for these papers.
+             <br>Including this paper in the search will make the search take a while.
+             <br>Make sure that you really do intend to snowball this paper! <br>"),
+        dataTableOutput("HighDensity"),
+        h4(strong("Papers Without Connections"), align = "center"),
+        HTML("There are no connections (citations + references) found for these papers.
+             <br> This is likely due to it being a recent paper and not having been udpated in the Microsoft Academic database.
+             <br>You should search these papers' references by hand. <br>"),
+        dataTableOutput("LowDensity"),
+        h4(strong("Missing Papers"), align = "center"),
         HTML(glue('{nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers could not be found in the database
                   and cannot be be staged. <br>
-                  Try manually searching for the missing papers on the Microsoft Academic
-                  {a("search engine", href="https://academic.microsoft.com/home")}.<br>
-                  If you find the page for the paper, add it to your list of titles.<br><br>
-                  <b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
-                  push the uploaded papers to the staging area.</b><br><br>')),
-        HTML("<hr>Over 1000 connections (citations + references) were found for these papers.
-                  <br>Including this paper in the search will make the search take a while.
-                  <br>Make sure that you really do intend to snowball this paper! <br>"),
-           dataTableOutput("HighDensity"),
-               HTML("<hr>
-                    There are no connections (citations + references) found for these papers.
-                    <br> This is likely due to it being a recent paper and not having been udpated in the Microsoft Academic database.
-                    <br>You should search these papers' references by hand. <br>"),
-           dataTableOutput("LowDensity"),
-        br(),br(),
-        h4(strong("Missing Papers"), align = "center"),
+                  Try manually searching for the missing papers on 
+                  {a("Microsoft Academic", href="https://academic.microsoft.com/home")}.<br>
+                  If you find the page for the paper, add it to your list of titles verbatim.<br><br>')),
         dataTableOutput("StagedMissing"),
         div(actionButton("PushBulk", "Confirm"), style = "float:right"),
         footer = NULL, easyClose = TRUE))
-        
+      
       
       return(result)
       
@@ -471,20 +471,39 @@ server <- function(input, output) {
               options = list(dom = 't'), rownames = FALSE)
   })
   
+  # output$LowDensity <- renderDataTable({
+  #   datatable(staged_file_searched()[attr(staged_file_searched(), "low_d"),c("Title")],
+  #             options = list(dom = 't'), rownames = FALSE)
+  # })
+  # 
+  # output$HighDensity <- renderDataTable({
+  #   datatable(staged_file_searched()[attr(staged_file_searched(), "high_d"),c("Title")],
+  #             options = list(dom = 't'), rownames = FALSE)
+  # })
+  
   output$LowDensity <- renderDataTable({
-    datatable(staged_file_searched()[attr(staged_file_searched(), "low_d"),c("Title")],
-    options = list(dom = 't'), rownames = FALSE)
+    df <- staged_file_searched() %>%
+      filter(Citations %in% c(NA, 0) & References %in% c(NA, 0)) %>%
+      filter(!is.na(Year)) %>%
+      select(Title, Citations, References)
+    datatable(df, options = list(dom = 't'), rownames = FALSE)
   })
   
   output$HighDensity <- renderDataTable({
-    datatable(staged_file_searched()[attr(staged_file_searched(), "high_d"),c("Title")],
-              options = list(dom = 't'), rownames = FALSE)
+    df <- staged_file_searched() 
+    df$total_links <- rowSums(df[,c("Citations", "References")], na.rm = T)
+    df$high_d <- ifelse(df$total_links >= 1000, TRUE, FALSE)
+      df <- df %>%
+      filter(!is.na(Year)) %>%
+      filter(high_d == TRUE) %>%
+      select(Title, Citations, References)
+  datatable(df, options = list(dom = 't'), rownames = FALSE)
   })
   
   
   observeEvent(input$PushBulk, {
     
-    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID)]
+    dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, previously_snowballed())]
     
     dup_removed <- staged_file_searched() %>%
       filter(!row_number() %in% attr(staged_file_searched(), "missing_rows"),
