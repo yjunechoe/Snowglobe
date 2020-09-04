@@ -420,14 +420,7 @@ server <- function(input, output) {
       toc <- Sys.time() - tic
       
       attr(result, "missing_rows") <- which(is.na(result$ID))
-      attr(result, "high_d") <- which(apply(result[,c("References", "Citations")], MARGIN = 2, FUN = sum, na.rm = T) > 1000)
-      attr(result, "low_d") <- which(result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
-      
     
-      # result <- result %>%
-      #   mutate(high_d, sum(result$Citations, result$References, na.rm = T) > 1000) %>%
-      #   mutate(low_d, result$Citations %in% c(0, NA) & result$References %in% c(0, NA))
-      
       showModal(modalDialog(
         title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
                             - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
@@ -470,16 +463,6 @@ server <- function(input, output) {
     datatable(staging_file()[attr(staged_file_searched(), "missing_rows"),],
               options = list(dom = 't'), rownames = FALSE)
   })
-  
-  # output$LowDensity <- renderDataTable({
-  #   datatable(staged_file_searched()[attr(staged_file_searched(), "low_d"),c("Title")],
-  #             options = list(dom = 't'), rownames = FALSE)
-  # })
-  # 
-  # output$HighDensity <- renderDataTable({
-  #   datatable(staged_file_searched()[attr(staged_file_searched(), "high_d"),c("Title")],
-  #             options = list(dom = 't'), rownames = FALSE)
-  # })
   
   output$LowDensity <- renderDataTable({
     df <- staged_file_searched() %>%

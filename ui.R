@@ -7,14 +7,14 @@ source('app_source/snowballer_source.R')
 options(shiny.maxRequestSize=500*1024^2)
 
 ui <- dashboardPage(skin = "black",
-                    dashboardHeader(title = "Snowballer"),
+                    dashboardHeader(title = "SnowGlobe"),
                     dashboardSidebar(
                       sidebarMenu(
                         menuItem("Home", tabName = "HomeTab", icon = icon("home")),
                         menuItem("Prepare Search", tabName = "PrepareTab", icon = icon("dashboard")),
                         menuItem("Run Search", tabName = "RunTab", icon = icon("project-diagram")),
                         menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
-                        menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
+                        #menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
                         menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
                         menuItem("About", tabName = "AboutTab", icon = icon("info"))
                       )
@@ -70,8 +70,7 @@ ui <- dashboardPage(skin = "black",
                                 fluidRow(
                                   box(width = 12,
                                       h3(strong("Search options"), align = "center"),
-                                      checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE),
-                                      HTML("<h5> Not your first search? Upload your already-searched titles here:</h5>")
+                                      checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE)
                                   )
                                 )
                                 
@@ -93,7 +92,7 @@ ui <- dashboardPage(skin = "black",
                                       downloadButton("UpdatedRunningListDownload", label = "Download Running List"))
                                 )
                         ),
-                        tabItem(tabName = "ManualTab"),
+                        #tabItem(tabName = "ManualTab"),
                         tabItem(tabName = "StatisticsTab",
                                 fluidRow(
                                   tabBox(id = "StatisticsTabset", width = 12, height = "750px",
@@ -138,7 +137,9 @@ ui <- dashboardPage(skin = "black",
                                                 placeholder = "(Leave blank to use stored key)")
                                   )
                                 )
-                        )
+                        ),
+                        tabItem(tabName = "AboutTab",
+                                includeMarkdown("app_source/about_tab.Rmd"))
                       )
                       )
                       )
