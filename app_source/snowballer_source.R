@@ -256,12 +256,11 @@ scrape <- function(ID){
   if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
 }
 
-# pubkey lookup table
+# pubkey lookup vector
 pub.key <- function(Pub){
-  mapdf <- tibble(old = 0:8,
-                  new = c("Unknown", "Journal Article", "Patent", "Conference",
-                          "Book Chapter", "Book", "Book Reference", "Dataset", "Repository"))
-  mapdf[as.numeric(Pub) + 1,]$new
+  key_vec <- c("Unknown", "Journal Article", "Patent", "Conference",
+               "Book Chapter", "Book", "Book Reference", "Dataset", "Repository"))
+  key_vec[as.numeric(Pub) + 1]
 }
 
 scrape.tidy <- function(IDs){
