@@ -31,10 +31,6 @@ con <- dbConnect(
 )
 dbSendQuery(con, "use snowglobe")
 
-con <- dbConnect(SQLite(), "paper.db")
-
-
-
 
 ### mix of frontend/backend
 
@@ -81,13 +77,18 @@ title.search.tidy <- function(titles){
   
   # Grab correctly formatted titles and merge
   
-  original_titles <- fast.scrape(data$ID) %>% 
-    pull(Title)
+  # original_titles <- fast.scrape(data$ID) %>% 
+  #   pull(Title)
+  # 
+  # data %>% 
+  #   mutate(Title = coalesce(original_titles, Title)) %>% 
+  #   relocate(ID, Title)
+  # 
+  original_titles <- fast.scrape(data$ID) %>%
+    select(ID, Title)
   
-  data %>% 
-    mutate(Title = coalesce(original_titles, Title)) %>% 
-    relocate(ID, Title)
-  
+  left_join(select(data, -Title), original_titles, by = "ID") %>%
+    select(ID, Title, everything())
 }
 
 # search ID by doi
@@ -118,12 +119,11 @@ doi.search.tidy <- function(dois){
   
   # Grab correctly formatted titles and merge
   
-  original_titles <- fast.scrape(data$ID) %>% 
-    pull(Title)
+  original_titles <- fast.scrape(data$ID) %>%
+    select(ID, Title)
   
-  data %>% 
-    mutate(Title = coalesce(original_titles, Title)) %>% 
-    relocate(ID, Title)
+  left_join(select(data, -Title), original_titles, by = "ID") %>%
+    select(ID, Title, everything())
   
 }
 

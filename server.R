@@ -334,7 +334,7 @@ server <- function(input, output) {
         footer = NULL, easyClose = TRUE))
     } else if(any(lookup %in% previously_snowballed())) {
       showModal(modalDialog(
-        title = strong("ACION BLOCKED: Paper Previously Snowballed"),
+        title = strong("ACTION BLOCKED: Paper Previously Snowballed"),
         HTML("You have already snowballed this paper in your ongoing project.<br>
              Double check the running list of IDs you uploaded in the <b>Setup</b> tab."),
         footer = NULL, easyClose = TRUE))
