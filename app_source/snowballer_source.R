@@ -11,11 +11,8 @@ ipak <- function(pkg){
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
               "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
-<<<<<<< HEAD
               "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB")
-=======
-              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy")
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
+
 ipak(packages)
 
 # microsoft academic API key
@@ -25,7 +22,6 @@ Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c
 scopusopts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 
 # connect to database (paper.db file)
-<<<<<<< HEAD
 con <- dbConnect(
   drv = MariaDB(),
   host = "nortonlab.coeodvofteoq.us-east-2.rds.amazonaws.com",
@@ -34,11 +30,11 @@ con <- dbConnect(
   port = 3306
 )
 dbSendQuery(con, "use snowglobe")
-=======
+
 con <- dbConnect(SQLite(), "paper.db")
 
 
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
+
 
 ### mix of frontend/backend
 
@@ -223,11 +219,7 @@ PMID.search <- function(PMIDs, type = "pubmed"){
 
 # backward search (references)
 backward.search <- function(ID){
-<<<<<<< HEAD
   dbGetQuery(con, paste0("select paperid, refid from REFS where paperid in (",
-=======
-  dbGetQuery(con, paste0("select paperid, refid from refs where paperid in (",
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
                          paste(ID, collapse = ","), ")")) %>% 
     rename(Backward_References = refid, ID = paperid) %>% 
     select(Backward_References, ID) %>%
@@ -236,11 +228,7 @@ backward.search <- function(ID){
 
 # forward search (citations)
 forward.search <- function(ID){
-<<<<<<< HEAD
   dbGetQuery(con, paste0("select paperid, refid from REFS where refid in (",
-=======
-  dbGetQuery(con, paste0("select paperid, refid from refs where refid in (",
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
                          paste(ID, collapse = ","), ")")) %>% 
     rename(ID = refid, Forward_Citations = paperid) %>%
     select(ID, Forward_Citations) %>% 
@@ -282,11 +270,7 @@ scrape <- function(ID){
 # pubkey lookup vector
 pub.key <- function(Pub){
   key_vec <- c("Unknown", "Journal Article", "Patent", "Conference",
-<<<<<<< HEAD
                "Book Chapter", "Book", "Book Reference", "Dataset", "Repository")
-=======
-               "Book Chapter", "Book", "Book Reference", "Dataset", "Repository"))
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
   key_vec[as.numeric(Pub) + 1]
 }
 
@@ -357,20 +341,12 @@ scrape.abst.DOI.cr <- function(DOIs) {
 
 # local db search
 fast.scrape <- function(ID){
-<<<<<<< HEAD
   as_tibble(dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
-=======
-  as_tibble(dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
     rename(ID = PaperID, Title = OriginalTitle, Pub_type = DocType, DOI = Doi)
 }
 
 fast.scrape.squish <- function(ID){
-<<<<<<< HEAD
   res <- dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))
-=======
-  res <- dbGetQuery(con, paste("select * from paper_info where PaperID in (", paste(ID, collapse = ", "), ")"))
->>>>>>> 8f6aa06b9c301934ad545e3a4807e1520ef438a8
   res$DocType[is.na(res$DocType)] = "Unknown"
   as_tibble(res) %>%
     mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
