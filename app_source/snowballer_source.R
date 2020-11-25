@@ -341,13 +341,16 @@ scrape.abst.DOI.cr <- function(DOIs) {
 
 # local db search
 fast.scrape <- function(ID){
-  as_tibble(dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
+  res <- as_tibble(dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
     rename(ID = PaperID, Title = OriginalTitle, Pub_type = DocType, DOI = Doi)
+  res$ID <- as.numeric(res$ID)
+  return(res)
 }
 
 fast.scrape.squish <- function(ID){
   res <- dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))
   res$DocType[is.na(res$DocType)] = "Unknown"
+  res$PaperID <- as.numeric(res$PaperID)
   as_tibble(res) %>%
     mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
     select(-DocType)

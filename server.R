@@ -562,18 +562,28 @@ server <- function(input, output) {
   })
   
   output$UniqueValue <- renderValueBox({
-    valueBox(length(unique_found()) - length(new()),
-             color = "purple",
-             subtitle = "Previously-Found Papers")
+    tryCatch({
+      valueBox(length(unique_found()) - length(new()),
+        color = "purple",
+        subtitle = "Previously-Found Papers")
+    }, error = function(cond){
+        valueBox(0,
+          color = "purple",
+          subtitle = "Previously-Found Papers")
+    })
   })
   
   output$NewValue <- renderValueBox({
-    valueBox(length(new()),
-             color = "yellow",
-             subtitle = "New Papers Detected")
+    tryCatch({
+      valueBox(length(new()),
+        color = "yellow",
+        subtitle = "New Papers Detected")
+    }, error=function(cond){
+      valueBox(0,
+               color = "yellow",
+               subtitle = "New Papers Detected")
+    }) 
   })
-  
-  
   
   
   
