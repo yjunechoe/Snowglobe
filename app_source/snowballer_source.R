@@ -93,7 +93,7 @@ title.search.tidy <- function(titles){
 
 # search ID by doi
 doi.search <- function(doi){
-  searched <- ma_evaluate(query=paste0('DOI=', "'", doi, "'"),
+  searched <- ma_evaluate(query=paste0('DOI=', "'", str_to_upper(doi), "'"),
                           atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
     select(-(1:2))
   if (nrow(searched) == 0) {tibble(Id = NA, DOI = doi)}
