@@ -43,7 +43,7 @@ col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Auth
   if (is.null(lhs)) rhs else lhs
 }
 
-# 0 infix
+# 0 length infix
 "%0%" <- function(lhs, rhs) {
   if (length(lhs) == 0) rhs else lhs
 }
@@ -53,15 +53,19 @@ col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Auth
 #########################
 
 # search ID by title
-title.strip <- function(title){tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))}
+title.strip <- function(title){
+  tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))
+}
 
 title.search <- function(title){
-  searched <- ma_evaluate(query = paste0('Ti=', "'", title.strip(title), "'"),
-                          atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
+  searched <- ma_evaluate(
+    query = paste0('Ti=', "'", title.strip(title), "'"),
+    atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
+  ) %>% 
     select(-(1:2))
   if (nrow(searched) == 0) {tibble(Id = NA, Ti = title.strip(title))}
   else if (nrow(searched) > 1) {arrange(searched, desc(Y), desc(Pt))[1,]}
-  else {searched}
+  else searched
 }
 
 title.search.tidy <- function(titles){
@@ -69,7 +73,7 @@ title.search.tidy <- function(titles){
                  CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
   for (title in titles) {
     df <- title.search(title)
-    df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
+    df$RId <- length(df$RId[[1]]) %0% NA
     df$AA <- ifelse(length(df$AA[[1]]) == 0, NA, paste(unique(unlist(df$AA)), collapse = ', '))
     data <- bind_rows(data, df)
   }
@@ -80,15 +84,6 @@ title.search.tidy <- function(titles){
     select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
     mutate(Pub_type = pub.key(Pub_type))
   
-  # Grab correctly formatted titles and merge
-  
-  # original_titles <- fast.scrape(data$ID) %>% 
-  #   pull(Title)
-  # 
-  # data %>% 
-  #   mutate(Title = coalesce(original_titles, Title)) %>% 
-  #   relocate(ID, Title)
-  # 
   original_titles <- fast.scrape(data$ID) %>%
     select(ID, Title)
   
@@ -226,23 +221,19 @@ PMID.search <- function(PMIDs, type = "pubmed"){
 backward.search <- function(ID){
   dbGetQuery(con, paste0("select paperid, refid from REFS where paperid in (",
                          paste(ID, collapse = ","), ")")) %>% 
-    rename(Backward_References = refid, ID = paperid) %>% 
-    select(Backward_References, ID) %>%
-    mutate(Backward_References = as.numeric(Backward_References))
+    select(Backward_References = refid, ID = paperid) 
 }
 
 # forward search (citations)
 forward.search <- function(ID){
   dbGetQuery(con, paste0("select paperid, refid from REFS where refid in (",
                          paste(ID, collapse = ","), ")")) %>% 
-    rename(ID = refid, Forward_Citations = paperid) %>%
-    select(ID, Forward_Citations) %>% 
-    mutate(Forward_Citations = as.numeric(Forward_Citations))
+    select(ID = refid, Forward_Citations = paperid)
 }
 
 # snowball
 snowball <- function(ID){
-  unique(c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations))
+  unique(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations)
 }
 
 # snowball with duplicates
@@ -258,7 +249,8 @@ snowball_connections <- function(ID){
   b <- backward.search(ID) %>%
     rename(from = ID, to = Backward_References) %>% 
     mutate(direction = "backward")
-  as_tibble(rbind(b, f)) %>% select(from, to, direction)
+  bind_rows(b, f) %>% 
+    relocate(from)
 }
 
 ######################
