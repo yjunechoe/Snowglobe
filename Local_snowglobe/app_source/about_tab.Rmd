@@ -1,3 +1,0 @@
-SnowGlobe was created by June Choe, Jinnie Choi, and Sean McWeeny at Northwestern University. This project was made possible with the support of Elizabeth Norton and the [LEARN Lab](https://learnlab.northwestern.edu/). This project was also made possible by the [Open Data Commons Attribution License](https://opendatacommons.org/licenses/by/1-0/) under which Microsoft Academic Graph falls.
-
-If you have done snowball searching by hand, and have documentation related to how the snowball search was done, please email [Sean](mailto:seanmcweeny2022@u.northwestern.edu). We are working to see how well SnowGlobe compares to hand searching.

@@ -38,9 +38,14 @@ dbSendQuery(con, "use snowglobe")
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                      Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
 
-# ifelse null infix
+# null infix
 "%||%" <- function(lhs, rhs) {
   if (is.null(lhs)) rhs else lhs
+}
+
+# 0 infix
+"%0%" <- function(lhs, rhs) {
+  if (length(lhs) == 0) rhs else lhs
 }
 
 #########################
@@ -306,12 +311,13 @@ scrape.tidy <- function(IDs){
 # abstract
 ## microsoft academic (MAG ID)
 scrape.abst.ID <- function(IDs){
-  data <- tibble(Id = numeric(), abstract = character())
-  for (ID in IDs){data <- bind_rows(data, ma_abstract(query = paste0("Id=", ID)))}
-  data %>% rename(ID = Id, Abstract = abstract) %>% 
-    mutate(Abstract = ifelse(Abstract == "", NA,
-                             str_squish(str_remove_all(str_remove(Abstract, "^Abstract[ ]*[NA ]*"), "(NA)+"))))
+  map_dfr(IDs, ~ {
+    abst <- ma_abstract(query = paste0("Id=", .x))$abstract %0% NA
+    list(ID = .x, Abstract = abst)
+  }) %>%
+  mutate(Abstract = str_squish(str_remove_all(str_remove(Abstract, "^Abstract[ ]*[NA ]*"), "(NA)+")))
 }
+
 ## scopus (DOI)
 scrape.abst.DOI <- function(DOIs){
   abst <- NULL
