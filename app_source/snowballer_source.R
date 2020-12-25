@@ -10,7 +10,7 @@ ipak <- function(pkg){
 }
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
-              "RSQLite", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
+              "dbplyr", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
               "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB")
 
 ipak(packages)
@@ -21,31 +21,32 @@ Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186
 scopusopts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 
-# connect to database (paper.db file)
+# connect to database
 con <- dbConnect(
   drv = MariaDB(),
   host = "nortonlab.coeodvofteoq.us-east-2.rds.amazonaws.com",
-  user = 'nortonadmin',
+  username = 'nortonadmin',
   password = 'z87knhs5bb',
   port = 3306
 )
 dbSendQuery(con, "use snowglobe")
 
+paper_info_db <- tbl(con, "PAPER_INFO")
+refs_db <- tbl(con, "REFS")
 
 ### mix of frontend/backend
-
 
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                      Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
 
-# null infix
+# check null infix
 "%||%" <- function(lhs, rhs) {
   if (is.null(lhs)) rhs else lhs
 }
 
-# 0 length infix
+# check 0 infix
 "%0%" <- function(lhs, rhs) {
-  if (length(lhs) == 0) rhs else lhs
+  if (lhs == 0 | length(lhs) == 0) rhs else lhs
 }
 
 #########################
@@ -58,72 +59,89 @@ title.strip <- function(title){
 }
 
 title.search <- function(title){
+  
   searched <- ma_evaluate(
     query = paste0('Ti=', "'", title.strip(title), "'"),
     atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
-  ) %>% 
-    select(-(1:2))
-  if (nrow(searched) == 0) {tibble(Id = NA, Ti = title.strip(title))}
-  else if (nrow(searched) > 1) {arrange(searched, desc(Y), desc(Pt))[1,]}
-  else searched
+  )
+  
+  if (nrow(searched) == 0) {
+    tibble(Id = NA, Ti = title.strip(title))
+  } else if (nrow(searched) > 1) {
+    arrange(searched, desc(Y), desc(Pt))[1,] %>% 
+      select(-(1:2))
+  } else {
+    select(searched, -(1:2))
+  }
+  
 }
 
 title.search.tidy <- function(titles){
-  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
-                 CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
-  for (title in titles) {
-    df <- title.search(title)
-    df$RId <- length(df$RId[[1]]) %0% NA
-    df$AA <- ifelse(length(df$AA[[1]]) == 0, NA, paste(unique(unlist(df$AA)), collapse = ', '))
-    data <- bind_rows(data, df)
-  }
   
-  data <- data %>%
-    rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
-           Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
+  map_dfr(titles, title.search) %>% 
+    select(
+      ID = Id,
+      Title = Ti,
+      Year = Y,
+      Authors = AA,
+      Journal = J.JN,
+      Pub_type = Pt,
+      Citations = CC,
+      References = RId
+    ) %>%
+    filter(!is.na(ID)) %>% 
+    rowwise() %>% 
+    mutate(
+      Title = fast.scrape(ID)$OriginalTitle,
+      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
+      References = length(References) %0% NA,
+    ) %>% 
+    ungroup() %>% 
     mutate(Pub_type = pub.key(Pub_type))
   
-  original_titles <- fast.scrape(data$ID) %>%
-    select(ID, Title)
-  
-  left_join(select(data, -Title), original_titles, by = "ID") %>%
-    select(ID, Title, everything())
 }
 
 # search ID by doi
 doi.search <- function(doi){
-  searched <- ma_evaluate(query=paste0('DOI=', "'", str_to_upper(doi), "'"),
-                          atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")) %>% 
-    select(-(1:2))
-  if (nrow(searched) == 0) {tibble(Id = NA, DOI = doi)}
-  else if (nrow(searched) > 1) {arrange(searched, desc(Y), desc(Pt))[1,]}
-  else {searched}
+  
+  searched <- ma_evaluate(
+    query = paste0('DOI=', "'", str_to_upper(doi), "'"),
+    atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
+  )
+  
+  if (nrow(searched) == 0) {
+    tibble(Id = NA, DOI = str_to_upper(doi))
+  } else if (nrow(searched) > 1) {
+    arrange(searched, desc(Y), desc(Pt))[1,] %>% 
+      select(-(1:2))
+  } else {
+    select(searched, -(1:2))
+  }
+  
 }
 
 doi.search.tidy <- function(dois){
-  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
-                 CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
-  for (doi in dois) {
-    df <- doi.search(doi)
-    df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
-    df$AA <- ifelse(length(df$AA[[1]]) == 0, NA, paste(unique(unlist(df$AA)), collapse = ', '))
-    data <- bind_rows(data, df)
-  }
   
-  data <- data %>%
-    rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
-           Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
+  map_dfr(dois, doi.search) %>% 
+    select(
+      ID = Id,
+      Title = Ti,
+      Year = Y,
+      Authors = AA,
+      Journal = J.JN,
+      Pub_type = Pt,
+      Citations = CC,
+      References = RId
+    ) %>%
+    filter(!is.na(ID)) %>% 
+    rowwise() %>% 
+    mutate(
+      Title = fast.scrape(ID)$OriginalTitle,
+      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
+      References = length(References) %0% NA,
+    ) %>% 
+    ungroup() %>% 
     mutate(Pub_type = pub.key(Pub_type))
-  
-  # Grab correctly formatted titles and merge
-  
-  original_titles <- fast.scrape(data$ID) %>%
-    select(ID, Title)
-  
-  left_join(select(data, -Title), original_titles, by = "ID") %>%
-    select(ID, Title, everything())
   
 }
 
@@ -219,16 +237,18 @@ PMID.search <- function(PMIDs, type = "pubmed"){
 
 # backward search (references)
 backward.search <- function(ID){
-  dbGetQuery(con, paste0("select paperid, refid from REFS where paperid in (",
-                         paste(ID, collapse = ","), ")")) %>% 
-    select(Backward_References = refid, ID = paperid) 
+  refs_db %>% 
+    filter(paperid %in% ID) %>% 
+    select(Backward_References = refid, ID = paperid) %>% 
+    dplyr::collect()
 }
 
 # forward search (citations)
 forward.search <- function(ID){
-  dbGetQuery(con, paste0("select paperid, refid from REFS where refid in (",
-                         paste(ID, collapse = ","), ")")) %>% 
-    select(ID = refid, Forward_Citations = paperid)
+  refs_db %>% 
+    filter(refid %in% ID) %>% 
+    select(ID = refid, Forward_Citations = paperid) %>% 
+    dplyr::collect()
 }
 
 # snowball
@@ -339,18 +359,17 @@ scrape.abst.DOI.cr <- function(DOIs) {
 
 # local db search
 fast.scrape <- function(ID){
-  res <- as_tibble(dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))) %>% 
-    rename(ID = PaperID, Title = OriginalTitle, Pub_type = DocType, DOI = Doi)
-  res$ID <- as.numeric(res$ID)
-  return(res)
+  paper_info_db %>% 
+    filter(PaperID %in% ID) %>% 
+    dplyr::collect()
 }
 
 fast.scrape.squish <- function(ID){
-  res <- dbGetQuery(con, paste("select * from PAPER_INFO where PaperID in (", paste(ID, collapse = ", "), ")"))
-  res$DocType[is.na(res$DocType)] = "Unknown"
-  res$PaperID <- as.numeric(res$PaperID)
-  as_tibble(res) %>%
-    mutate(OriginalTitle = paste(paste0("[", DocType, "]"), OriginalTitle)) %>%
+  fast.scrape(ID) %>% 
+    mutate(
+      DocType = DocType %||% "Unknown",
+      OriginalTitle = paste0("[", DocType, "] ", OriginalTitle)
+    ) %>% 
     select(-DocType)
 }
 
