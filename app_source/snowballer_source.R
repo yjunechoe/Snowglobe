@@ -50,6 +50,12 @@ col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Auth
   if (len_lhs == 0) rhs else len_lhs
 }
 
+# possibly() otherwise NULL
+possibly_null <- function(f,x){
+  possibly(f, otherwise = NULL)(x)
+}
+
+
 #########################
 ## ID Search Functions ##
 #########################
@@ -146,44 +152,14 @@ doi.search.tidy <- function(dois){
   
 }
 
+# not vectorized to allow for progress tracking in staged_file_searched()
+fill.template.row <- function(row){
+  
+  possibly_null(doi.search.tidy, row$DOI) %||%
+    possibly_null(title.search.tidy, row$Title) %||%
+    possibly_null(doi.search.tidy, PMID.search(row$PMID)$DOI) %||%
+    mutate(row, ID = NA)
 
-fill.template <- function(df){
-  
-  new <- col_format
-  
-  possibly_na <- function(f,x){
-    possibly(f, otherwise = NA)(x)
-  }
-  
-  df <- as_tibble(df) %>% 
-    modify(~ifelse(.x == "", NA, .x))
-  
-  for (i in 1:nrow(df)){
-    temp <- NA
-    
-    while (identical(temp, NA)){
-      if (!is.na(df[i,]$DOI)){
-        temp <- possibly_na(doi.search.tidy, df[i,]$DOI)
-      }
-      if (!is.na(df[i,]$Title)){
-        temp <- possibly_na(title.search.tidy, df[i,]$Title)
-      }
-      if (!is.null(df$PMID) && !is.na(df[i,]$PMID)){
-        PMID_info <- PMID.search(df[i,]$PMID)
-        temp <- possibly_na(doi.search.tidy, PMID_info[1,]$DOI)
-      }
-      if (identical(temp, NA)){
-        temp <- df[i,] %>% 
-          select(Title, DOI)
-      }
-    }
-    
-    new <- bind_rows(new, temp)
-  }
-  
-  new
-  # new %>% 
-  #   mutate(Title = map_chr(ID, ~possibly_na(orig.title, .x)))
 }
 
 # combined

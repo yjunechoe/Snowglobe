@@ -410,7 +410,7 @@ server <- function(input, output) {
                       {i}/{nrow(staging_file())} ({round(i / nrow(staging_file()), 2)*100}%)")
           )
         
-        temp <- fill.template(staging_file()[i,])
+        temp <- fill.template.row(staging_file()[i,])
         
         result <- bind_rows(result, temp)
       }
