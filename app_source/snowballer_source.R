@@ -44,9 +44,10 @@ col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Auth
   if (is.null(lhs)) rhs else lhs
 }
 
-# check 0 infix
+# check length 0 infix
 "%0%" <- function(lhs, rhs) {
-  if (lhs == 0 | length(lhs) == 0) rhs else lhs
+  len_lhs <- length(lhs)
+  if (len_lhs == 0) rhs else len_lhs
 }
 
 #########################
@@ -94,7 +95,7 @@ title.search.tidy <- function(titles){
     mutate(
       Title = fast.scrape(ID)$OriginalTitle,
       Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
-      References = length(References) %0% NA,
+      References = References %0% NA,
     ) %>% 
     ungroup() %>% 
     mutate(Pub_type = pub.key(Pub_type))
@@ -138,7 +139,7 @@ doi.search.tidy <- function(dois){
     mutate(
       Title = fast.scrape(ID)$OriginalTitle,
       Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
-      References = length(References) %0% NA,
+      References = References %0% NA,
     ) %>% 
     ungroup() %>% 
     mutate(Pub_type = pub.key(Pub_type))
@@ -253,7 +254,7 @@ forward.search <- function(ID){
 
 # snowball
 snowball <- function(ID){
-  unique(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations)
+  unique(c(backward.search(ID)$Backward_References, forward.search(ID)$Forward_Citations))
 }
 
 # snowball with duplicates
@@ -322,11 +323,18 @@ scrape.tidy <- function(IDs){
 # abstract
 ## microsoft academic (MAG ID)
 scrape.abst.ID <- function(IDs){
-  map_dfr(IDs, ~ {
-    abst <- ma_abstract(query = paste0("Id=", .x))$abstract %0% NA
-    list(ID = .x, Abstract = abst)
-  }) %>%
-  mutate(Abstract = str_squish(str_remove_all(str_remove(Abstract, "^Abstract[ ]*[NA ]*"), "(NA)+")))
+  abstracts <- map_chr(IDs, ~ {
+    abst <- ma_abstract(query = paste0("Id=", .x))$abstract
+    if (length(abst) == 0) {
+      NA
+    } else {
+      abst
+    }
+  })
+  tibble(
+    ID = IDs,
+    Abstract = str_squish(str_remove_all(str_remove(abstracts, "^Abstract[ ]*[NA ]*"), "(NA)+"))
+  )
 }
 
 ## scopus (DOI)
