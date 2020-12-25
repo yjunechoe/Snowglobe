@@ -155,10 +155,12 @@ doi.search.tidy <- function(dois){
 # not vectorized to allow for progress tracking in staged_file_searched()
 fill.template.row <- function(row){
   
-  possibly_null(doi.search.tidy, row$DOI) %||%
-    possibly_null(title.search.tidy, row$Title) %||%
-    possibly_null(doi.search.tidy, PMID.search(row$PMID)$DOI) %||%
-    mutate(row, ID = NA)
+  if (is.null(row$ID)) {
+    possibly_null(doi.search.tidy, row$DOI) %||%
+      possibly_null(title.search.tidy, row$Title) %||%
+      possibly_null(doi.search.tidy, PMID.search(row$PMID)$DOI) %||%
+      mutate(row, ID = NA)
+  }
 
 }
 
