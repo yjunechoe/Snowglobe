@@ -311,8 +311,7 @@ scrape.tidy <- function(IDs){
   
   # Grab correctly formatted titles and merge
   
-  original_titles <- fast.scrape(data$ID) %>% 
-    pull(Title)
+  original_titles <- fast.scrape(data$ID)$OriginalTitle
   
   data %>% 
     mutate(Title = coalesce(original_titles, Title)) %>% 
@@ -374,5 +373,5 @@ fast.scrape.squish <- function(ID){
 }
 
 orig.title <- function(ID){
-  fast.scrape(ID)$Title
+  fast.scrape(ID)$OriginalTitle
 }
