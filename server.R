@@ -401,19 +401,23 @@ server <- function(input, output) {
       
       tic <- Sys.time()
       
-      result <- col_format
-      for (i in 1:nrow(staging_file())){
-        
-        update_modal_progress(
-          value = i / nrow(staging_file()),
-          text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template...
-                      {i}/{nrow(staging_file())} ({round(i / nrow(staging_file()), 2)*100}%)")
+      result <- imap_dfr(
+        1:nrow(staging_file()),
+        ~ {
+          
+          nrows <- nrow(staging_file())
+          update_modal_progress(
+            value = .y / nrows,
+            text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template...
+                      {.y}/{nrows} ({round(.y / nrows, 2)*100}%)")
           )
-        
-        temp <- fill.template.row(staging_file()[i,])
-        
-        result <- bind_rows(result, temp)
-      }
+          
+          fill.template.row(staging_file()[.x])
+          
+        }
+      )
+      
+      result <- bind_rows(col_format, result)
       
       remove_modal_progress()
       
@@ -422,8 +426,9 @@ server <- function(input, output) {
       attr(result, "missing_rows") <- which(is.na(result$ID))
     
       showModal(modalDialog(
-        title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)}
-                            - Failed on {nrow(filter(result, is.na(ID)))} Papers")),
+        title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)} - ",
+                            if (any(is.na(result$ID))) {"Failed on {sum(is.na(result$ID))} Papers."}
+                            else {"All staged papers found!"})),
                   HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
                   push the uploaded papers to the staging area.</b><br><br>')),
         h4(strong("High Density Papers"), align = "center"),
@@ -437,15 +442,13 @@ server <- function(input, output) {
              <br>You should search these papers' references by hand. <br>"),
         dataTableOutput("LowDensity"),
         h4(strong("Missing Papers"), align = "center"),
-        HTML(glue('{nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers could not be found in the database
-                  and cannot be be staged. <br>
-                  Try manually searching for the missing papers on 
-                  {a("Microsoft Academic", href="https://academic.microsoft.com/home")}.<br>
-                  If you find the page for the paper, add it to your list of titles verbatim.<br><br>')),
+        HTML(glue('{sum(is.na(result$ID))} of the {nrow(result)} papers could not be found in the database and cannot be be staged.
+                  <br>Try manually searching for the missing papers on {a("Microsoft Academic", href="https://academic.microsoft.com/home")}.
+                  <br>If you find the page for the paper, add it to your list of titles verbatim.<br><br>')),
         dataTableOutput("StagedMissing"),
         div(actionButton("PushBulk", "Confirm"), style = "float:right"),
-        footer = NULL, easyClose = TRUE))
-      
+        footer = NULL, easyClose = TRUE)
+      )
       
       return(result)
       
