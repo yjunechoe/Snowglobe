@@ -258,9 +258,15 @@ snowball_connections <- function(ID){
 
 # paper info
 scrape <- function(ID){
-  article <- ma_evaluate(query = paste0('Id=', ID),
-                         atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI"))
-  if (nrow(article) != 0){select(article, -c('logprob', 'prob'))} 
+  article <- ma_evaluate(
+    query = paste0('Id=', ID),
+    atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
+  )
+  if (!is.null(article)){
+    select(article, -c('logprob', 'prob'))
+  } else {
+    tibble(ID = NA)
+  }
 }
 
 # pubkey lookup vector
@@ -271,30 +277,30 @@ pub.key <- function(Pub){
 }
 
 scrape.tidy <- function(IDs){
-  data <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
-                 CC = numeric(), RId = numeric(), AA = character(), J.JN = character())
-  for (ID in IDs) {
-    df <- scrape(ID)
-    if(!is.null(df)){
-      df$RId <- ifelse(length(df$RId[[1]]) == 0, NA, length(df$RId[[1]]))
-      df$AA <-  paste(unique(unlist(df$AA)), collapse = ', ')
-      data <- bind_rows(data, df)
-    }
-  }
   
-  data <- data %>%
-    rename(ID = Id, Title = Ti, Year = Y, Authors = AA, Journal = J.JN,
-           Pub_type = Pt, Citations = CC, References = RId) %>% 
-    select(ID, Title, Year, Authors, Journal, Pub_type, DOI, Citations, References) %>% 
+  raw_cols <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
+                     CC = numeric(), RId = list(), AA = list(), J.JN = character())
+  
+  map_dfr(IDs, scrape) %>% 
+    bind_rows(raw_cols, .) %>% 
+    select(
+      ID = Id,
+      Title = Ti,
+      Year = Y,
+      Authors = AA,
+      Journal = J.JN,
+      Pub_type = Pt,
+      Citations = CC,
+      References = RId
+    ) %>%
+    rowwise() %>% 
+    mutate(
+      Title = fast.scrape(ID)$OriginalTitle,
+      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
+      References = References %0% NA,
+    ) %>% 
+    ungroup() %>% 
     mutate(Pub_type = pub.key(Pub_type))
-  
-  # Grab correctly formatted titles and merge
-  
-  original_titles <- fast.scrape(data$ID)$OriginalTitle
-  
-  data %>% 
-    mutate(Title = coalesce(original_titles, Title)) %>% 
-    relocate(ID, Title)
   
 }
 
