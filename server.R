@@ -788,6 +788,23 @@ server <- function(input, output) {
   # 1. year hist ogram/density
   # 2. top authors
   # 3. top journals
+
+  
+  years_plot <- reactive({
+    comprehensive_output() %>% 
+      select(ID, Year) %>% 
+      inner_join(
+        all_connections(),
+        by = c("ID" = "to")
+      ) %>% 
+      mutate(direction = factor(direction, levels = c("forward", "backward"))) %>%
+      ggplot(aes(Year, fill = direction)) +
+      geom_histogram(bins = 15, color = "white") +
+      scale_fill_manual(values = c("grey70", "grey30")) +
+      theme_classic()
+  })
+  
+  output$YearsPlot <- renderPlot(years_plot(), res = 150)
   
   
   ## Word Cloud ##
@@ -799,15 +816,14 @@ server <- function(input, output) {
       pull(Title) %>% 
       cnlp_annotate() %>% 
       pluck(1) %>% 
-      rename(Word = lemma) %>%
-      count(Word) %>% 
-      filter(str_detect(Word, "^[:alpha:][[:alpha:][:punct:]]*")) %>% 
-      filter(!Word %in% stop_words$word) %>% 
+      count(Word = lemma) %>%
+      filter(
+        str_detect(Word, "^[:alpha:][[:alpha:][:punct:]]*"),
+        !Word %in% stop_words$word
+      ) %>% 
       mutate(Word = tolower(Word)) %>% 
       select(-n) %>% 
-      count(Word) %>% 
-      rename(Count = n) %>% 
-      arrange(desc(Count))
+      count(Word, name = "Count", sort = TRUE)
     removeModal()
     df
   })
@@ -830,32 +846,39 @@ server <- function(input, output) {
   
   nodes <- reactive({
     bind_rows(
-      tibble(id = new(),
-             group = "Newly Found"),
-      tibble(id = unique_found()[unique_found() %in% previous()],
-             group = "Previously Found"),
-      tibble(id = data$staged$ID,
-             group = "Snowball Inputs")
+      tibble(
+        id = new(),
+        group = "Newly Found"
+      ),
+      tibble(
+        id = unique_found()[unique_found() %in% previous()],
+        group = "Previously Found"
+      ),
+      tibble(
+        id = data$staged$ID,
+        group = "Snowball Inputs"
+      )
     ) %>% 
       mutate(
         color.border = "black",
         info = map(id, fast.scrape),
-        title = map_chr(info,
-                        ~paste("<p><b>ID:</b>",
-                               a(.x$ID, href=glue("https://academic.microsoft.com/paper/{.x$ID}")),
-                               "<br><b>Title:</b>", .x$Title,
-                               "<br><b>Year:</b>", .x$Year,
-                               "<br><b>DOI:</b>",
-                               if(!is.na(.x$DOI)){
-                                 a(.x$DOI, href=glue("https://doi.org/{.x$DOI}"))
-                               }else{NA},
-                               "<br><b>Publication Type</b>:", .x$Pub_type,
-                               if(.x$ID %in% running_list()$ID){
-                                 paste("<br><b>Date Found:</b>",
-                                       filter(running_list(), ID == .x$ID)$Date %>% 
-                                         str_extract("^\\w{3} \\w{3} \\d+"))
-                               }else{NULL},
-                               "</p>")
+        title = map_chr(
+          info,
+          ~ paste("<p><b>ID:</b>",
+                  a(.x$ID, href=glue("https://academic.microsoft.com/paper/{.x$ID}")),
+                  "<br><b>Title:</b>", .x$Title,
+                  "<br><b>Year:</b>", .x$Year,
+                  "<br><b>DOI:</b>",
+                  if(!is.na(.x$DOI)){
+                    a(.x$DOI, href=glue("https://doi.org/{.x$DOI}"))
+                  }else{NA},
+                  "<br><b>Publication Type</b>:", .x$Pub_type,
+                  if(.x$ID %in% running_list()$ID){
+                    paste("<br><b>Date Found:</b>",
+                          filter(running_list(), ID == .x$ID)$Date %>% 
+                            str_extract("^\\w{3} \\w{3} \\d+"))
+                  }else{NULL},
+                  "</p>")
         )
       ) %>% 
       select(-info)
@@ -863,10 +886,11 @@ server <- function(input, output) {
   
   edges <- reactive({
     all_connections() %>% 
-      add_count(from) %>% 
-      mutate(dashes = direction == "forward",
-             length = n^(4/7) * 25) %>% 
-      select(-n)
+      add_count(from, name = "length") %>% 
+      mutate(
+        dashes = direction == "forward",
+        length = length^(4/7) * 25
+      )
   })
   
   visnet <- reactive({

@@ -96,7 +96,16 @@ ui <- dashboardPage(skin = "black",
                         tabItem(tabName = "StatisticsTab",
                                 fluidRow(
                                   tabBox(id = "StatisticsTabset", width = 12, height = "750px",
-                                         tabPanel(value = "SummaryTab", h4(strong(" Summary "))),
+                                         tabPanel(value = "SummaryTab", h4(strong(" Summary ")),
+                                                  
+                                                  fluidRow(
+                                                    
+                                                    box(width = 12,
+                                                        plotOutput("YearsPlot"))
+                                                    
+                                                  )
+                                                  
+                                         ),
                                          tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
                                                   
                                                   fluidRow(
@@ -116,7 +125,8 @@ ui <- dashboardPage(skin = "black",
                                                   )
                                          ),
                                          tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
-                                                  visNetworkOutput("visualnetwork"))
+                                                  visNetworkOutput("visualnetwork")
+                                         )
                                   )
                                 )
                         ),
