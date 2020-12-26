@@ -605,15 +605,15 @@ server <- function(input, output) {
     
     # paper info
     
-    show_modal_progress_line(text = glue("Looking up information about {length(new())} paper(s)..."))
+    show_modal_progress_line(text = glue("Looking up information about {length(new())} discovered paper(s)..."))
     
     result <- imap_dfr(
       new(),
       ~{
         update_modal_progress(
           value = .y / length(new()),
-          text = glue("Looking up information about {length(new())} paper(s)...  
-                                       {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
+          text = glue("Looking up information about {length(new())} discovered paper(s)...  
+                       {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
         )
         scrape.tidy(.x)
       })
@@ -625,7 +625,7 @@ server <- function(input, output) {
     
     if(input$GetAbstracts){
       
-      show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} paper(s)..."),
+      show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} discovered paper(s)..."),
                                color = "#D7AA2D")
       
       # MAG search
@@ -636,16 +636,16 @@ server <- function(input, output) {
             ~{
               update_modal_progress(
                 value = .y / length(new()),
-                text = glue("Fetching abstracts of {length(new())} paper(s)...  
-                                          {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
+                text = glue("Fetching abstracts of {length(new())} discovered paper(s)...  
+                             {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
               )
-              abst <- scrape.abst.ID(result$ID[.x])$Abstract
-              tryCatchnull <- function(f){tryCatch(f, error = function(e){NULL})}
-              if (is.na(abst) & is.na(result$DOI[.x])) {
-                abst <- tryCatchnull(ft_abstract(doi, from = "semanticscholar")$semanticscholar[[1]]$abstract) %||%
-                  tryCatchnull(ft_abstract(doi, from = "plos")$plos[[1]]$abstract) %||%
-                  tryCatchnull(ft_abstract(doi, from = "crossref")$crossref[[1]]$abstract) %||%
-                  tryCatchnull(ft_abstract(doi, from = "scopus", scopusopts = scopusopts)$scopus[[1]]$abstract) %||%
+              abst <- scrape.abst.ID(result$ID[.x])
+              if (is.na(abst) && !is.na(result$DOI[.x])) {
+                DOI <- result$DOI[.x]
+                abst <- scrape.abst.DOI(DOI, "semanticscholar") %||%
+                  scrape.abst.DOI(DOI, "plos") %||%
+                  scrape.abst.DOI(DOI, "crossref") %||%
+                  scrape.abst.DOI(DOI, "scopus") %||%
                   NA
               }
               abst

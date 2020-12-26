@@ -291,37 +291,11 @@ scrape.abst.ID <- function(IDs){
     abst <- ma_abstract(query = paste0("Id=", .x))$abstract
     if (length(abst) == 0) NA else abst
   })
-  tibble(
-    ID = IDs,
-    Abstract = str_squish(str_remove_all(str_remove(abstracts, "^Abstract[ ]*[NA ]*"), "(NA)+"))
-  )
 }
 
-## scopus (DOI)
-scrape.abst.DOI <- function(DOIs){
-  abst <- NULL
-  data <- tibble(DOI = character(), Abstract = character())
-  for (d in DOIs){
-    ft <- tryCatch({ft <- ft_abstract(x = d, from = "scopus", scopusopts = opts)$scopus[[1]]},
-                   error = function(cond){ft <- NULL})
-    if (is_null(ft)) {abst <- tibble(DOI = d, Abstract = NA)}
-    else {abst <- tibble(DOI = ft$doi, Abstract = ifelse(is_null(ft$abstract), NA, ft$abstract))}
-    data <- rbind(data, abst)
-  }
-  data
-}
-
-## crossref (DOI)
-scrape.abst.DOI.cr <- function(DOIs) {
-  data <- tibble(DOI = character(), Abstract = character())
-  for (d in DOIs) {
-    abst <- tryCatch({abst <- cr_abstract(d)},
-                     error = function(cond){abst <- NA})
-    if (is.na(abst)) {abst <- tibble(DOI = d, Abstract = NA)}
-    else {abst <- tibble(DOI = d, Abstract = str_squish(abst))}
-    data <- rbind(data, abst)
-  }
-  data
+## other databases (semantic scholar, plos, crossref, scopus)
+scrape.abst.DOI <- function(DOI, db) {
+  possibly(ft_abstract, otherwise = NULL)(DOI, from = db)[[db]][[1]]$abstract
 }
 
 # local db search
