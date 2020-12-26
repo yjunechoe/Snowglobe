@@ -18,8 +18,42 @@ ipak(packages)
 source('app_source/utils.R')
 source('app_source/connect.R')
 
-col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
-                     Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
+
+raw_cols <- tibble(
+  Id = numeric(),
+  Ti = character(),
+  Pt = character(),
+  DOI = character(),
+  Y = numeric(),
+  CC = numeric(),
+  RId = list(),
+  AA = list(),
+  J.JN = character()
+)
+
+col_format <- tibble(
+  ID = numeric(),
+  Title = character(),
+  Year = numeric(),
+  Authors = character(),
+  Journal = character(),
+  Pub_type = character(),
+  DOI = character(),
+  Citations = numeric(),
+  References = numeric()
+)
+
+key_vec <- c(
+  "Unknown",
+  "Journal Article",
+  "Patent",
+  "Conference",
+  "Book Chapter",
+  "Book",
+  "Book Reference",
+  "Dataset",
+  "Repository"
+)
 
 
 #########################
@@ -130,26 +164,6 @@ fill.template.row <- function(row){
 
 }
 
-# combined
-search.IDs <- function(df){
-  orig <- df
-  df <- bind_rows(col_format, df %>% select(Title, DOI))
-  for (i in 1:nrow(df)) {
-    if (!is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {
-      doi <- df[i, "DOI"]
-      temp <- doi.search.tidy(df[i, "DOI"])
-      if (is.na(temp$ID)) {temp <- title.search.tidy(df[i, "Title"])}
-      df[i,] <- temp
-      df[i, "DOI"] <- doi
-    }
-    else if (is.na(df[i, "DOI"]) & !is.na(df[i, "Title"])) {df[i,] <- title.search.tidy(df[i, "Title"])}
-    else if (!is.na(df[i, "DOI"]) & is.na(df[i, "Title"])) {df[i,] <- doi.search.tidy(df[i, "DOI"])}
-    else {}
-  }
-  df <- mutate(df, Pub_type = pub.key(Pub_type))
-  as_tibble(cbind(select(orig, -c(Title, DOI)), df))
-}
-
 # PubMed ID
 PMID.info <- function(PMID, type = "pubmed"){
   tryCatch({entrez_summary(db = type, id = PMID)}, warning = function(cond){PMID})
@@ -237,17 +251,12 @@ scrape <- function(ID){
 
 # pubkey lookup vector
 pub.key <- function(Pub){
-  key_vec <- c("Unknown", "Journal Article", "Patent", "Conference",
-               "Book Chapter", "Book", "Book Reference", "Dataset", "Repository")
   key_vec[as.numeric(Pub) + 1]
 }
 
 scrape.tidy <- function(IDs){
-  
-  raw_cols <- tibble(Id = numeric(), Ti = character(), Pt = character(), DOI = character(), Y = numeric(),
-                     CC = numeric(), RId = list(), AA = list(), J.JN = character())
-  
-  map_dfr(IDs, scrape) %>% 
+
+    map_dfr(IDs, scrape) %>% 
     bind_rows(raw_cols, .) %>% 
     select(
       ID = Id,
@@ -275,11 +284,7 @@ scrape.tidy <- function(IDs){
 scrape.abst.ID <- function(IDs){
   abstracts <- map_chr(IDs, ~ {
     abst <- ma_abstract(query = paste0("Id=", .x))$abstract
-    if (length(abst) == 0) {
-      NA
-    } else {
-      abst
-    }
+    if (length(abst) == 0) NA else abst
   })
   tibble(
     ID = IDs,
