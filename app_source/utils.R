@@ -11,5 +11,5 @@
 
 # possibly() otherwise NULL
 possibly_null <- function(f,x){
-  possibly(f, otherwise = NULL)(x)
+  purrr::possibly(f, otherwise = NULL)(x)
 }
