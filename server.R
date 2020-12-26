@@ -601,21 +601,22 @@ server <- function(input, output) {
   
   comprehensive_output <- eventReactive(input$ComprehensiveSearch, {
     
-    tic <- Sys.time()
+    time_mark <- Sys.time()
     
     # paper info
     
     show_modal_progress_line(text = glue("Looking up information about {length(new())} paper(s)..."))
     
-    result <- imap_dfr(new(),
-                       ~{
-                         update_modal_progress(
-                           value = .y / length(new()),
-                           text = glue("Looking up information about {length(new())} paper(s)...  
+    result <- imap_dfr(
+      new(),
+      ~{
+        update_modal_progress(
+          value = .y / length(new()),
+          text = glue("Looking up information about {length(new())} paper(s)...  
                                        {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-                           )
-                         scrape.tidy(.x)
-                       })
+        )
+        scrape.tidy(.x)
+      })
     
     remove_modal_progress()
     
@@ -625,64 +626,44 @@ server <- function(input, output) {
     if(input$GetAbstracts){
       
       show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} paper(s)..."),
-                               color = "#796e5b")
+                               color = "#D7AA2D")
       
       # MAG search
       result <- result %>% 
-        mutate(Abstract = 
-                 imap_chr(ID,
-                          ~{
-                            update_modal_progress(
-                              value = .y / length(new()),
-                              text = glue("Fetching abstracts of {length(new())} paper(s)...  
+        mutate(
+          Abstract = imap_chr(
+            1:nrow(result),
+            ~{
+              update_modal_progress(
+                value = .y / length(new()),
+                text = glue("Fetching abstracts of {length(new())} paper(s)...  
                                           {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-                              )
-                            scrape.abst.ID(.x)$Abstract
-                          }
-                 ))
+              )
+              abst <- scrape.abst.ID(result$ID[.x])$Abstract
+              tryCatchnull <- function(f){tryCatch(f, error = function(e){NULL})}
+              if (is.na(abst) & is.na(result$DOI[.x])) {
+                abst <- tryCatchnull(ft_abstract(doi, from = "semanticscholar")$semanticscholar[[1]]$abstract) %||%
+                  tryCatchnull(ft_abstract(doi, from = "plos")$plos[[1]]$abstract) %||%
+                  tryCatchnull(ft_abstract(doi, from = "crossref")$crossref[[1]]$abstract) %||%
+                  tryCatchnull(ft_abstract(doi, from = "scopus", scopusopts = scopusopts)$scopus[[1]]$abstract) %||%
+                  NA
+              }
+              abst
+            })
+        )
       
       remove_modal_progress()
       
       
-      # Check other databses with DOI for abstracts that are missing or incomplete
-      
-      show_modal_progress_line(text = glue("Checking other sources for abstracts..."),
-                               color = "#75795b")
-      
-      tryCatchnull <- function(f){tryCatch(f, error = function(e){NULL})}
-      
       missing <- which(!is.na(result$DOI) & (is.na(result$Abstract) | str_detect(result$Abstract, "[.]{3}$")))
       
-      counter <- 1
-      for (i in missing){
-        
-        print(i)
-        
-        update_modal_progress(
-          value = counter / length(missing),
-          text = "Checking other sources for abstracts..."
-        )
-        counter <- counter + 1
-        
-        doi <- result[i,]$DOI
-        
-        abstract <-
-          tryCatchnull(ft_abstract(doi, from = "semanticscholar")$semanticscholar[[1]]$abstract) %||%
-          tryCatchnull(ft_abstract(doi, from = "plos")$plos[[1]]$abstract) %||%
-          tryCatchnull(ft_abstract(doi, from = "crossref")$crossref[[1]]$abstract) %||%
-          tryCatchnull(ft_abstract(doi, from = "scopus", scopusopts = scopusopts)$scopus[[1]]$abstract)
-        
-        result[i,]$Abstract <- abstract %||% NA
-        
-      }
-      
-                          }
+    }
     
     
-    toc <- Sys.time() - tic
+    time_mark <- Sys.time() - time_mark
     
     showModal(modalDialog(
-      title = strong(glue("Search Complete - {round(toc[[1]], 2)} {units(toc)}")),
+      title = strong(glue("Search Complete - {round(time_mark[[1]], 2)} {units(time_mark)}")),
       HTML(glue('Input: {nrow(data$staged)} papers. <br>
                 Output: {nrow(result)} papers. <br>
                 Abstracts Failed to Fetch: {ifelse(input$GetAbstracts, sum(is.na(result$Abstract)), "Not Searched")} 

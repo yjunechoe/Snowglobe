@@ -85,7 +85,8 @@ title.search <- function(title){
 
 title.search.tidy <- function(titles){
   
-  map_dfr(titles, title.search) %>% 
+  map_dfr(titles, title.search) %>%
+    bind_rows(raw_cols, .) %>% 
     select(
       ID = Id,
       Title = Ti,
@@ -93,6 +94,7 @@ title.search.tidy <- function(titles){
       Authors = AA,
       Journal = J.JN,
       Pub_type = Pt,
+      DOI,
       Citations = CC,
       References = RId
     ) %>%
@@ -130,6 +132,7 @@ doi.search <- function(doi){
 doi.search.tidy <- function(dois){
   
   map_dfr(dois, doi.search) %>% 
+    bind_rows(raw_cols, .) %>% 
     select(
       ID = Id,
       Title = Ti,
@@ -137,6 +140,7 @@ doi.search.tidy <- function(dois){
       Authors = AA,
       Journal = J.JN,
       Pub_type = Pt,
+      DOI,
       Citations = CC,
       References = RId
     ) %>%
@@ -265,6 +269,7 @@ scrape.tidy <- function(IDs){
       Authors = AA,
       Journal = J.JN,
       Pub_type = Pt,
+      DOI,
       Citations = CC,
       References = RId
     ) %>%
