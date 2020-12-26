@@ -23,6 +23,7 @@ Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 Sys.setenv(ELSEVIER_SCOPUS_KEY = "9c9423562dfa9cef97f2e80c236a5ff1") # dd017ab5c552d4af6089cc6182758186
 scopusopts <- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
 
+
 # connect to database
 con <- dbConnect(
   drv = MariaDB(),
@@ -33,10 +34,6 @@ con <- dbConnect(
 )
 dbSendQuery(con, "use snowglobe")
 
-paper_info_db <- tbl(con, "PAPER_INFO")
-refs_db <- tbl(con, "REFS")
-
-### mix of frontend/backend
 
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                      Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
@@ -202,7 +199,7 @@ PMID.search <- function(PMIDs, type = "pubmed"){
 
 # backward search (references)
 backward.search <- function(ID){
-  refs_db %>% 
+  tbl(con, "REFS") %>% 
     filter(paperid %in% ID) %>% 
     select(Backward_References = refid, ID = paperid) %>% 
     dplyr::collect()
@@ -210,7 +207,7 @@ backward.search <- function(ID){
 
 # forward search (citations)
 forward.search <- function(ID){
-  refs_db %>% 
+  tbl(con, "REFS") %>% 
     filter(refid %in% ID) %>% 
     select(ID = refid, Forward_Citations = paperid) %>% 
     dplyr::collect()
@@ -336,7 +333,7 @@ scrape.abst.DOI.cr <- function(DOIs) {
 
 # local db search
 fast.scrape <- function(ID){
-  paper_info_db %>% 
+  tbl(con, "PAPER_INFO") %>% 
     filter(PaperID %in% ID) %>% 
     dplyr::collect()
 }
