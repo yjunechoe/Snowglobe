@@ -2,7 +2,7 @@
 
 library(shiny)
 library(shinydashboard)
-source('app_source/snowballer_source.R')
+source('app_source/snowglobe.R')
 
 options(shiny.maxRequestSize=500*1024^2)
 
@@ -29,7 +29,7 @@ ui <- dashboardPage(skin = "black",
                                                  "))),  
                       tabItems(
                         tabItem(tabName = "HomeTab",
-                                includeMarkdown("app_source/snowballer_home.Rmd")
+                                includeMarkdown("app_source/home.Rmd")
                                 
                         ),
                         tabItem(tabName = "PrepareTab",
@@ -149,7 +149,7 @@ ui <- dashboardPage(skin = "black",
                                 )
                         ),
                         tabItem(tabName = "AboutTab",
-                                includeMarkdown("app_source/about_tab.Rmd"))
+                                includeMarkdown("app_source/about.Rmd"))
                       )
                       )
                       )

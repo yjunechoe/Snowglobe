@@ -15,6 +15,8 @@ packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visN
 
 ipak(packages)
 
+source('app_source/utils.R')
+
 # microsoft academic API key
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")
 # scopus api key // check remaining with `verbose = TRUE` argument
@@ -38,22 +40,6 @@ refs_db <- tbl(con, "REFS")
 
 col_format <- tibble(ID = numeric(), Title = character(), Year = numeric(), Authors = character(), Journal = character(),
                      Pub_type = character(), DOI = character(), Citations = numeric(), References = numeric())
-
-# check null infix
-"%||%" <- function(lhs, rhs) {
-  if (is.null(lhs)) rhs else lhs
-}
-
-# check length 0 infix
-"%0%" <- function(lhs, rhs) {
-  len_lhs <- length(lhs)
-  if (len_lhs == 0) rhs else len_lhs
-}
-
-# possibly() otherwise NULL
-possibly_null <- function(f,x){
-  possibly(f, otherwise = NULL)(x)
-}
 
 
 #########################
