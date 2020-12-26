@@ -259,8 +259,8 @@ pub.key <- function(Pub){
 }
 
 scrape.tidy <- function(IDs){
-
-    map_dfr(IDs, scrape) %>% 
+  
+  map_dfr(IDs, scrape) %>% 
     bind_rows(raw_cols, .) %>% 
     select(
       ID = Id,

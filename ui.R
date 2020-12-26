@@ -20,6 +20,8 @@ ui <- dashboardPage(skin = "black",
                       )
                     ),
                     dashboardBody(
+                      # CSS
+                      tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "snowglobe.css")),
                       # Navigation prompt
                       tags$head(tags$script(HTML("
                                                  // Enable navigation prompt
