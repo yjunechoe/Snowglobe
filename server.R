@@ -401,7 +401,7 @@ server <- function(input, output) {
       
       show_modal_progress_line(text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template..."))
       
-      tic <- Sys.time()
+      time_mark <- Sys.time()
       
       n_staged <- nrow(staging_file())
       
@@ -429,17 +429,17 @@ server <- function(input, output) {
         filter(!is.na(Id)) %>% 
         distinct(Id, .keep_all = TRUE)
       
-      result <- possibly_null(format.template, filter(result, !is.na(Id))) %||% bind_cols(staging_file(), ID = NA)
+      result <- possibly_null(format.tidy, filter(result, !is.na(Id))) %||% bind_cols(staging_file(), ID = NA)
       
       attr(result, "missing_rows") <- missing_rows
       attr(result, "staged_dups") <- staged_dups
       
       remove_modal_progress()
       
-      toc <- Sys.time() - tic
+      time_mark <- Sys.time() - time_mark
       
       showModal(modalDialog(
-        title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)} - ",
+        title = strong(glue("Staging Complete - {round(time_mark[[1]], 2)} {units(time_mark)} - ",
                             if (length(missing_rows) > 0) {"Failed on {length(missing_rows)}/{n_staged} Papers."}
                             else {"All {n_staged} staged papers found!"})),
                   HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
@@ -631,8 +631,12 @@ server <- function(input, output) {
           text = glue("Looking up information about {length(new())} discovered paper(s)...  
                        {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
         )
-        scrape.tidy(.x)
+        scrape(.x)
       })
+    
+    update_modal_progress(value = 1, text = "Formatting...")
+    
+    result <- format.tidy(result)
     
     remove_modal_progress()
     

@@ -143,9 +143,9 @@ fill.template.row <- function(row){
   
 }
 
-format.template <- function(template) {
+format.tidy <- function(scraped) {
   
-  bind_rows(raw_cols, template) %>% 
+  bind_rows(raw_cols, scraped) %>% 
     select(
       ID = Id,
       Title = Ti,
@@ -238,31 +238,6 @@ pub.key <- function(Pub){
   key_vec[as.numeric(Pub) + 1]
 }
 
-scrape.tidy <- function(IDs){
-  
-  map_dfr(IDs, scrape) %>% 
-    bind_rows(raw_cols, .) %>% 
-    select(
-      ID = Id,
-      Title = Ti,
-      Year = Y,
-      Authors = AA,
-      Journal = J.JN,
-      Pub_type = Pt,
-      DOI,
-      Citations = CC,
-      References = RId
-    ) %>%
-    rowwise() %>% 
-    mutate(
-      Title = fast.scrape(ID)$OriginalTitle,
-      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
-      References = References %0% NA,
-    ) %>% 
-    ungroup() %>% 
-    mutate(Pub_type = pub.key(Pub_type))
-  
-}
 
 # abstract
 ## microsoft academic (MAG ID)
