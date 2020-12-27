@@ -599,6 +599,8 @@ server <- function(input, output) {
   
   ### Search ###
   
+  fast_output <- eventReactive(input$ComprehensiveSearch, {fast.scrape()})
+  
   comprehensive_output <- eventReactive(input$ComprehensiveSearch, {
     
     time_mark <- Sys.time()
@@ -949,31 +951,33 @@ server <- function(input, output) {
       ),
       tibble(
         id = data$staged$ID,
-        group = "Snowball Inputs"
+        group = "Snowballed"
       )
     ) %>% 
       mutate(
         color.border = "black",
-        info = map(id, fast.scrape),
-        title = map_chr(
-          info,
-          ~ paste("<p><b>ID:</b>",
-                  a(.x$ID, href=glue("https://academic.microsoft.com/paper/{.x$ID}")),
-                  "<br><b>Title:</b>", .x$OriginalTitle,
-                  "<br><b>Year:</b>", .x$Year,
-                  "<br><b>DOI:</b>",
-                  if(!is.na(.x$DOI)){
-                    a(.x$DOI, href=glue("https://doi.org/{.x$DOI}"))
-                  }else{NA},
-                  "<br><b>Publication Type</b>:", .x$Pub_type,
-                  if(.x$ID %in% running_list()$ID){
-                    paste("<br><b>Date Found:</b>",
-                          filter(running_list(), ID == .x$ID)$Date %>% 
-                            str_extract("^\\w{3} \\w{3} \\d+"))
-                  }else{NULL},
-                  "</p>")
+        info = map(id, fast.scrape)
+      ) %>% 
+      rowwise() %>% 
+      mutate(
+        title = paste0(
+          "<p>",
+          "<b>ID: </b>", a(info$PaperID, href=glue("https://academic.microsoft.com/paper/{info$PaperID}")),
+          "<br><b>Title: </b>", info$OriginalTitle,
+          "<br><b>Year: </b>", info$Year,
+          "<br><b>DOI: </b>", if(!is.na(info$Doi)){a(info$Doi, href=glue("https://doi.org/{info$Doi}"))},
+          "<br><b>Publication Type</b>: ", info$DocType,
+          if(info$PaperID %in% running_list()$ID){
+            paste(
+              "<br><b>Date Found: </b>",
+              filter(running_list(), ID == info$ID)$Date %>% 
+                str_extract("^\\w{3} \\w{3} \\d+")
+            )
+          },
+          "</p>"
         )
       ) %>% 
+      ungroup() %>% 
       select(-info)
   })
   
