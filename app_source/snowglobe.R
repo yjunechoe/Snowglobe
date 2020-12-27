@@ -143,9 +143,14 @@ fill.template.row <- function(row){
   
 }
 
-format.tidy <- function(scraped) {
+format.tidy <- function(searched) {
   
-  bind_rows(raw_cols, scraped) %>% 
+  original_titles <- fast.scrape(searched$Id) %>% 
+    select(Id = PaperID, Title = OriginalTitle) %>% 
+    mutate(Id = as.integer(Id))
+  
+  bind_rows(raw_cols, searched) %>% 
+    inner_join(original_titles, by = "Id") %>% 
     select(
       ID = Id,
       Title = Ti,
@@ -165,8 +170,8 @@ format.tidy <- function(scraped) {
     ) %>% 
     ungroup() %>% 
     mutate(
-      Title = fast.scrape(ID)$OriginalTitle,
       Pub_type = pub.key(Pub_type),
+      across(where(is.double), as.integer)
     )
   
 }
