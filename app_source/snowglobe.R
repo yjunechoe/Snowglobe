@@ -11,7 +11,7 @@ ipak <- function(pkg){
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
               "dbplyr", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
-              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB")
+              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB", "rlang")
 
 ipak(packages)
 
@@ -118,7 +118,7 @@ pubmed.search <- function(pubmedID, type = "pubmed"){
     if (!is.null(info) && "doi" %in% info$idtype) {
       doi.search(info$value[info$idtype == "doi"])
     } else {
-      output <- list()
+      output <- list() # TODO switch out for list2() and tidyeval with `:=`
       col_name <- switch(type, "pubmed" = "PMID", "pmc" = "PMCID")
       output[[col_name]] <- pubmedID
       output
