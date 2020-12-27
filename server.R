@@ -872,7 +872,7 @@ server <- function(input, output) {
       ) %>% 
       mutate(
         direction = factor(direction, levels = c("forward", "backward")),
-        Journal = fct_lump(Journal, n = 15, ties.method = "first")
+        Journal = fct_lump(Journal, n = 10, ties.method = "first")
       ) %>% 
       filter(Journal != "Other") %>%
       mutate(
