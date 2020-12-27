@@ -764,12 +764,8 @@ server <- function(input, output) {
   
   
   ## Summary Plots ##
-  
-  #  TODO - 1/(2+3) layout
-  # 1. year hist ogram/density
-  # 2. top authors
-  # 3. top journals
 
+  # years plot
   
   years_plot <- reactive({
     comprehensive_output() %>% 
@@ -782,10 +778,93 @@ server <- function(input, output) {
       ggplot(aes(Year, fill = direction)) +
       geom_histogram(bins = 15, color = "white") +
       scale_fill_manual(values = c("grey70", "grey30")) +
-      theme_classic()
+      labs(y = NULL, x = NULL) +
+      theme_classic() +
+      theme(
+        panel.ontop = TRUE,
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = 'white')
+      )
   })
   
   output$YearsPlot <- renderPlot(years_plot(), res = 150)
+  
+  
+  # authors plot
+  
+  authors_plot <- reactive({
+    comprehensive_output() %>% 
+      select(ID, Authors) %>% 
+      mutate(Authors = str_split(Authors, ", ")) %>% 
+      unnest(Authors) %>% 
+      inner_join(
+        all_connections(),
+        by = c("ID" = "to")
+      ) %>% 
+      mutate(
+        direction = factor(direction, levels = c("forward", "backward")),
+        Authors = fct_lump(Authors, n = 15, ties.method = "first")
+      ) %>% 
+      filter(Authors != "Other") %>%
+      mutate(Authors = fct_rev(fct_infreq(Authors))) %>% 
+      ggplot(aes(Authors, fill = direction)) +
+      geom_bar(color = "white") +
+      coord_flip() +
+      scale_fill_manual(values = c("grey70", "grey30")) +
+      scale_y_continuous(
+        expand = expansion(c(0.02, 0.05)),
+        breaks = function(x) unique(as.integer(pretty(x)))
+      ) +
+      labs(y = NULL, x = NULL) +
+      theme_classic() +
+      theme(
+        panel.ontop = TRUE,
+        panel.background = element_blank(),
+        panel.grid.major.x = element_line(color = 'white')
+      )
+  })
+  
+  output$AuthorsPlot <- renderPlot(authors_plot(), res = 150)
+  
+  
+  # journals plot
+  
+  journals_plot <- reactive({
+    comprehensive_output() %>% 
+      filter(!is.na(Journal)) %>% 
+      select(ID, Journal) %>% 
+      inner_join(
+        all_connections(),
+        by = c("ID" = "to")
+      ) %>% 
+      mutate(
+        direction = factor(direction, levels = c("forward", "backward")),
+        Journal = fct_lump(Journal, n = 15, ties.method = "first")
+      ) %>% 
+      filter(Journal != "Other") %>%
+      mutate(
+        Journal = text_split(Journal),
+        Journal = fct_rev(fct_infreq(Journal))
+      ) %>% 
+      ggplot(aes(Journal, fill = direction)) +
+      geom_bar(color = "white") +
+      coord_flip() +
+      scale_fill_manual(values = c("grey70", "grey30")) +
+      scale_y_continuous(
+        expand = expansion(c(0.02, 0.05)),
+        breaks = function(x) unique(as.integer(pretty(x)))
+      ) +
+      labs(y = NULL, x = NULL) +
+      theme_classic() +
+      theme(
+        axis.text.y = element_text(hjust = 0, margin = margin(r = .5, unit = "cm")),
+        panel.ontop = TRUE,
+        panel.background = element_blank(),
+        panel.grid.major.x = element_line(color = 'white')
+      )
+  })
+  
+  output$JournalsPlot <- renderPlot(journals_plot(), res = 150)
   
   
   ## Word Cloud ##

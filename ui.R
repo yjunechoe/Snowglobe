@@ -101,10 +101,13 @@ ui <- dashboardPage(skin = "black",
                                          tabPanel(value = "SummaryTab", h4(strong(" Summary ")),
                                                   
                                                   fluidRow(
-                                                    
-                                                    box(width = 12,
-                                                        plotOutput("YearsPlot"))
-                                                    
+                                                    box(width = 12, plotOutput("YearsPlot"))
+                                                  ),
+                                                  fluidRow(
+                                                    box(width = 12, plotOutput("AuthorsPlot")),
+                                                  ),
+                                                  fluidRow(
+                                                    box(width = 12, plotOutput("JournalsPlot")),
                                                   )
                                                   
                                          ),
