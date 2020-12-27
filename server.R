@@ -721,22 +721,31 @@ server <- function(input, output) {
       final_output() %>%
         select(-Date, -Searched_from) %>% 
         relocate(Density, Connections, .after = References),
-      selection = 'single',
+      selection = list(mode = "single", target = 'cell'),
       extensions = c('Responsive', 'FixedHeader'),
       options = list(buttons = c('copy', 'csv', 'excel', 'print'),
                      fixedHeader = TRUE)
     )
   })
   
-  # Click row to navigate to MAG page
-  observeEvent(input$OutputTable_rows_selected, {
-    showModal(modalDialog(h4(strong("Navigate to this paper's page on the Microsoft Academic database?")),
-                          footer = actionButton("Navigate", "Confirm"), easyClose = TRUE))
+  # Click ID or DOI cell to navigate
+  observeEvent(input$OutputTable_cells_selected, {
+
+    if (nrow(input$OutputTable_cells_selected) == 1 && !is.na(input$OutputTable_cells_selected[1,2])) {
+      
+      if (input$OutputTable_cells_selected[1,2] == 1) {
+        showModal(modalDialog(
+          h4(strong("Go to this paper's page on the Microsoft Academic database in a new window?")),
+          footer = actionButton("NavigateMAG", "Proceed"), easyClose = TRUE
+        ))
+      }
+      
+    }
   })
   
-  observeEvent(input$Navigate, {
+  observeEvent(input$NavigateMAG, {
     browseURL(paste0("https://academic.microsoft.com/paper/",
-                     final_output()[input$OutputTable_rows_selected,]$ID))
+                     final_output()$ID[input$OutputTable_cells_selected[1,1]]))
     removeModal()
   })
   
