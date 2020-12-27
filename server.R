@@ -735,20 +735,44 @@ server <- function(input, output) {
       
       if (input$OutputTable_cells_selected[1,2] == 1) {
         showModal(modalDialog(
-          h4(strong("Go to this paper's page on the Microsoft Academic database in a new window?")),
+          h4(strong("Open this paper's page on the Microsoft Academic database in a new window?")),
           footer = actionButton("NavigateMAG", "Proceed"), easyClose = TRUE
+        ))
+      }
+      
+      if (input$OutputTable_cells_selected[1,2] == 7) {
+        showModal(modalDialog(
+          h4(strong("Open this paper's DOI link in a new window?")),
+          footer = actionButton("NavigateDOI", "Proceed"), easyClose = TRUE
         ))
       }
       
     }
   })
   
+  # Navigate to MAG
   observeEvent(input$NavigateMAG, {
-    browseURL(paste0("https://academic.microsoft.com/paper/",
-                     final_output()$ID[input$OutputTable_cells_selected[1,1]]))
+    browseURL(paste0(
+      "https://academic.microsoft.com/paper/",
+      final_output()$ID[input$OutputTable_cells_selected[1,1]]
+    ))
     removeModal()
   })
   
+  # Navigate to DOI
+  observeEvent(input$NavigateDOI, {
+    
+    if (!is.na(final_output()$DOI[input$OutputTable_cells_selected[1,1]])) {
+      browseURL(paste0(
+        "https://doi.org/",
+        final_output()$DOI[input$OutputTable_cells_selected[1,1]]
+      ))
+      removeModal()
+    } else {
+      showModal(modalDialog(h4(strong("No DOI was found for this paper.")), easyClose = TRUE))
+    }
+    
+  })
   
   
   # TODO: add way to fill abstracts easily (separate ID+abstracts df in a diff tab that reactively gets left_joined?)
@@ -935,7 +959,7 @@ server <- function(input, output) {
           info,
           ~ paste("<p><b>ID:</b>",
                   a(.x$ID, href=glue("https://academic.microsoft.com/paper/{.x$ID}")),
-                  "<br><b>Title:</b>", .x$Title,
+                  "<br><b>Title:</b>", .x$OriginalTitle,
                   "<br><b>Year:</b>", .x$Year,
                   "<br><b>DOI:</b>",
                   if(!is.na(.x$DOI)){
