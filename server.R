@@ -378,18 +378,20 @@ server <- function(input, output) {
   output$StagedTemplateDownload <- downloadHandler(
     filename = function() {"Template.csv"},
     content = function(file) {
-      write_csv(tibble(Title = character(), DOI = character(),
-                       PMID = numeric()),
-                file)
+      write_csv(tibble(
+        Title = character(),
+        DOI = character(),
+        PMID = numeric(),
+        PMCID = numeric()
+      ), file)
     }
   )
   
   # upload file to stage
   staging_file <- reactive({
-    if(is.null(input$FileToStage)) return (NULL)
-    if(file.exists(input$FileToStage$datapath)){
+    if(!is.null(input$FileToStage) && file.exists(input$FileToStage$datapath)) {
       read_csv(input$FileToStage$datapath)
-    } else {return(NULL)}
+    }
   })
   
 
@@ -401,34 +403,45 @@ server <- function(input, output) {
       
       tic <- Sys.time()
       
+      n_staged <- nrow(staging_file())
+      
       result <- imap_dfr(
-        1:nrow(staging_file()),
+        1:n_staged,
         ~ {
           
-          nrows <- nrow(staging_file())
           update_modal_progress(
-            value = .y / nrows,
-            text = glue("Looking up and staging {nrow(staging_file())} paper(s) from template...
-                      {.y}/{nrows} ({round(.y / nrows, 2)*100}%)")
+            value = .y / n_staged,
+            text = glue("Looking up and staging {n_staged} paper(s) from template...
+                      {.y}/{n_staged} ({round(.y / n_staged, 2)*100}%)")
           )
           
-          fill.template.row(staging_file()[.x])
+          fill.template.row(staging_file()[.x,])
           
         }
       )
       
-      result <- bind_rows(col_format, result)
+      update_modal_progress(value = 1, text = "Formatting...")
+      
+      missing_rows <- which(is.na(result$Id))
+      staged_dups <- sum(table(result$Id) > 1) # TODO notify duplicates in template
+      
+      result <- result %>% 
+        filter(!is.na(Id)) %>% 
+        distinct(Id, .keep_all = TRUE)
+      
+      result <- possibly_null(format.template, filter(result, !is.na(Id))) %||% bind_cols(staging_file(), ID = NA)
+      
+      attr(result, "missing_rows") <- missing_rows
+      attr(result, "staged_dups") <- staged_dups
       
       remove_modal_progress()
       
       toc <- Sys.time() - tic
       
-      attr(result, "missing_rows") <- which(is.na(result$ID))
-    
       showModal(modalDialog(
         title = strong(glue("Staging Complete - {round(toc[[1]], 2)} {units(toc)} - ",
-                            if (any(is.na(result$ID))) {"Failed on {sum(is.na(result$ID))} Papers."}
-                            else {"All staged papers found!"})),
+                            if (length(missing_rows) > 0) {"Failed on {length(missing_rows)}/{n_staged} Papers."}
+                            else {"All {n_staged} staged papers found!"})),
                   HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
                   push the uploaded papers to the staging area.</b><br><br>')),
         h4(strong("High Density Papers"), align = "center"),
@@ -500,7 +513,8 @@ server <- function(input, output) {
     
     showModal(modalDialog(
       title = "Complete!",
-      HTML(glue("{nrow(dup_removed)} papers will be staged after removing {length(dups)} duplicates.<br>
+      HTML(glue("{nrow(dup_removed)} papers will be staged after removing
+                {length(dups) + attr(staged_file_searched(), 'staged_dups')} duplicates.<br>
                 Click on a row to individually remove a paper from the staging area.<br><br>
                 Proceed to the <b>Run Search</b> tab after reviewing your staged papers.")),
       footer = NULL, easyClose = TRUE
@@ -1049,4 +1063,4 @@ server <- function(input, output) {
   })
   
   
-  }
+}

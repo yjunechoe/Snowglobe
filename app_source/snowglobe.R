@@ -60,139 +60,119 @@ key_vec <- c(
 ## ID Search Functions ##
 #########################
 
-# search ID by title
+# by title
 title.strip <- function(title){
   tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))
 }
 
 title.search <- function(title){
   
-  searched <- ma_evaluate(
-    query = paste0('Ti=', "'", title.strip(title), "'"),
-    atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
-  )
-  
-  if (nrow(searched) == 0) {
-    tibble(Id = NA, Ti = title.strip(title))
-  } else if (nrow(searched) > 1) {
-    arrange(searched, desc(Y), desc(Pt))[1,] %>% 
-      select(-(1:2))
-  } else {
-    select(searched, -(1:2))
+  if (!is.null(title) && !is.na(title)) {
+    
+    searched <- ma_evaluate(
+      query = paste0('Ti=', "'", title.strip(title), "'"),
+      atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
+    )
+    
+    if (nrow(searched) == 0) {
+      list(Ti = title.strip(title))
+    } else if (nrow(searched) > 1) {
+      arrange(searched, desc(Y), desc(Pt))[1,] %>% 
+        select(-(1:2))
+    } else {
+      select(searched, -(1:2))
+    }
+    
   }
-  
 }
 
-title.search.tidy <- function(titles){
-  
-  map_dfr(titles, title.search) %>%
-    bind_rows(raw_cols, .) %>% 
-    select(
-      ID = Id,
-      Title = Ti,
-      Year = Y,
-      Authors = AA,
-      Journal = J.JN,
-      Pub_type = Pt,
-      DOI,
-      Citations = CC,
-      References = RId
-    ) %>%
-    filter(!is.na(ID)) %>% 
-    rowwise() %>% 
-    mutate(
-      Title = fast.scrape(ID)$OriginalTitle,
-      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
-      References = References %0% NA,
-    ) %>% 
-    ungroup() %>% 
-    mutate(Pub_type = pub.key(Pub_type))
-  
-}
-
-# search ID by doi
+# by doi
 doi.search <- function(doi){
   
-  searched <- ma_evaluate(
-    query = paste0('DOI=', "'", str_to_upper(doi), "'"),
-    atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
-  )
-  
-  if (nrow(searched) == 0) {
-    tibble(Id = NA, DOI = str_to_upper(doi))
-  } else if (nrow(searched) > 1) {
-    arrange(searched, desc(Y), desc(Pt))[1,] %>% 
-      select(-(1:2))
-  } else {
-    select(searched, -(1:2))
+  if (!is.null(doi) && !is.na(doi)) {
+    
+    searched <- ma_evaluate(
+      query = paste0('DOI=', "'", str_to_upper(doi), "'"),
+      atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
+    )
+    
+    if (nrow(searched) == 0) {
+      list(DOI = str_to_upper(doi))
+    } else if (nrow(searched) > 1) {
+      arrange(searched, desc(Y), desc(Pt))[1,] %>% 
+        select(-(1:2))
+    } else {
+      select(searched, -(1:2))
+    }
+    
   }
-  
 }
 
-doi.search.tidy <- function(dois){
+# by PubMed IDs
+pubmed.search <- function(pubmedID, type = "pubmed"){
   
-  map_dfr(dois, doi.search) %>% 
-    bind_rows(raw_cols, .) %>% 
-    select(
-      ID = Id,
-      Title = Ti,
-      Year = Y,
-      Authors = AA,
-      Journal = J.JN,
-      Pub_type = Pt,
-      DOI,
-      Citations = CC,
-      References = RId
-    ) %>%
-    filter(!is.na(ID)) %>% 
-    rowwise() %>% 
-    mutate(
-      Title = fast.scrape(ID)$OriginalTitle,
-      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
-      References = References %0% NA,
-    ) %>% 
-    ungroup() %>% 
-    mutate(Pub_type = pub.key(Pub_type))
-  
+  if (!is.null(pubmedID) && !is.na(pubmedID)) {
+    
+    info <- suppressWarnings(possibly(entrez_summary, otherwise = NULL)(id = pubmedID, db = type)$articleids)
+    
+    if (!is.null(info) && "doi" %in% info$idtype) {
+      doi.search(info$value[info$idtype == "doi"])
+    } else {
+      output <- list()
+      col_name <- switch(type, "pubmed" = "PMID", "pmc" = "PMCID")
+      output[[col_name]] <- pubmedID
+      output
+    }
+    
+  }
 }
+
+
+###################################
+## Template Processing Functions ##
+###################################
 
 # not vectorized to allow for progress tracking in staged_file_searched()
 fill.template.row <- function(row){
   
-  if (is.null(row$ID)) {
-    possibly_null(doi.search.tidy, row$DOI) %||%
-      possibly_null(title.search.tidy, row$Title) %||%
-      possibly_null(doi.search.tidy, PMID.search(row$PMID)$DOI) %||%
-      mutate(row, ID = NA)
-  }
-
+  doi.search(row[["DOI"]]) %!Id%
+    title.search(row[["Title"]]) %!Id%
+    pubmed.search(row[["PMID"]], type = "pubmed") %!Id%
+    pubmed.search(row[["PMCID"]], type = "pmc") %!Id%
+    row
+  
 }
 
-# PubMed ID
-PMID.info <- function(PMID, type = "pubmed"){
-  tryCatch({entrez_summary(db = type, id = PMID)}, warning = function(cond){PMID})
+format.template <- function(template) {
+  
+  bind_rows(raw_cols, template) %>% 
+    select(
+      ID = Id,
+      Title = Ti,
+      Year = Y,
+      Authors = AA,
+      Journal = J.JN,
+      Pub_type = Pt,
+      DOI,
+      Citations = CC,
+      References = RId
+    ) %>%
+    filter(!is.na(ID)) %>% 
+    rowwise() %>% 
+    mutate(
+      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
+      References = References %0% NA
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      Title = fast.scrape(ID)$OriginalTitle,
+      Pub_type = pub.key(Pub_type),
+    )
+  
 }
 
-PMID.search <- function(PMIDs, type = "pubmed"){
-  format <- tibble(PMID = numeric(), ID = numeric(), Title = character(), Year = numeric(),
-                   Authors = character(), Journal = character(), Pub_type = character(),
-                   DOI = character(), Citations = numeric(), References = numeric())
-  df <- tibble(PMID = numeric(), Title = character(), DOI = character())
-  for (PMID in PMIDs) {
-    PMinfo <- PMID.info(PMID, type = type)
-    if (length(PMinfo) != 1) {
-      PMtitle <- PMinfo$title
-      PMdoi <- PMinfo$articleids[PMinfo$articleids$idtype == "doi", "value"]
-      PMdoi <- ifelse(length(PMdoi) == 0, NA, PMdoi)
-    } else {
-      PMtitle <- NA
-      PMdoi <- NA
-    }
-    df <- rbind(df, tibble(PMID = PMID, Title = PMtitle, DOI = PMdoi))
-  }
-  colnames(df)[1] <- ifelse(type == "pubmed", "PMID", paste0(toupper(type), "ID"))
-  df
-}
+
+
 
 ########################
 ## Snowball Functions ##
@@ -288,14 +268,14 @@ scrape.tidy <- function(IDs){
 ## microsoft academic (MAG ID)
 scrape.abst.ID <- function(IDs){
   abstracts <- map_chr(IDs, ~ {
-    abst <- ma_abstract(query = paste0("Id=", .x))$abstract
+    abst <- ma_abstract(query = paste0("Id=", .x))[["abstract"]]
     if (length(abst) == 0) NA else abst
   })
 }
 
 ## other databases (semantic scholar, plos, crossref, scopus)
 scrape.abst.DOI <- function(DOI, db) {
-  possibly(ft_abstract, otherwise = NULL)(DOI, from = db)[[db]][[1]]$abstract
+  possibly(ft_abstract, otherwise = NULL)(DOI, from = db)[[db]][[1]][["abstract"]]
 }
 
 # local db search

@@ -1,4 +1,4 @@
-# check null infix
+# check NULL infix
 "%||%" <- function(lhs, rhs) {
   if (is.null(lhs)) rhs else lhs
 }
@@ -6,6 +6,16 @@
 # check length 0 infix
 "%0%" <- function(lhs, rhs) {
   if (length(lhs) == 0) rhs else length(lhs)
+}
+
+# check NA infix
+"%NA%" <- function(lhs, rhs) {
+  if (is.na(lhs)) rhs else lhs
+}
+
+# check ID infix (from raw output)
+"%!Id%" <- function(lhs, rhs) {
+  if (is.null(lhs[["Id"]])) rhs else lhs
 }
 
 # possibly() otherwise NULL
