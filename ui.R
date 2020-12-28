@@ -6,7 +6,7 @@ source('app_source/snowglobe.R')
 
 options(shiny.maxRequestSize=500*1024^2)
 
-ui <- dashboardPage(skin = "black",
+ui <- dashboardPage(skin = "purple",
                     dashboardHeader(title = "SnowGlobe"),
                     dashboardSidebar(
                       sidebarMenu(
@@ -23,12 +23,8 @@ ui <- dashboardPage(skin = "black",
                       # CSS
                       tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "snowglobe.css")),
                       # Navigation prompt
-                      tags$head(tags$script(HTML("
-                                                 // Enable navigation prompt
-                                                 window.onbeforeunload = function() {
-                                                 return 'Your changes will be lost!';
-                                                 };
-                                                 "))),  
+                      tags$head(tags$script(HTML("window.onbeforeunload = function() {return 'Your changes will be lost!'};"))),
+                      # Sidebar tabs
                       tabItems(
                         tabItem(tabName = "HomeTab",
                                 includeMarkdown("app_source/home.Rmd")

@@ -1,14 +1,49 @@
 /* ---------- Global Styles ---------- */
 @import url('https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i,900,900i');
+@import url('https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700');
 
 html, body {
   font-family: 'Roboto', sans-serif;
 }
 
+/* ---------- General HTML ----------- */
+
+h1, h2, h3 {
+  font-family: Roboto Slab;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+
+/* ---------- Dashboard Body -----------*/
+
+.content-wrapper {
+  background-color: #F3F3F3;    
+}
+
+.tab-content {
+  padding: 10px 15px 0px 15px;
+}
+
+.tab-content p {
+  font-size: 1.2em;
+  line-height: 1.5em;
+}
+
+
+/* ---------- Nav Bar -----------*/
+
+.main-header .logo {
+  font-family: Roboto Slab;
+  font-weight: 700;
+  letter-spacing: .1em
+}
+
 /* ---------- Box Styles ---------- */
 
 .box {
+  background-color: white;
   padding: 10px;
   border-radius: 20px;
-  border-top: 0px;
+  border: 1px solid steelblue
 }
