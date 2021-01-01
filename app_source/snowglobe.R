@@ -147,24 +147,23 @@ fill.template.row <- function(row){
 format.tidy <- function(searched) {
   
   original_titles <- fast.scrape(searched$Id) %>% 
-    select(Id = PaperID, Title = OriginalTitle) %>% 
+    select(Id = PaperID, OriginalTitle, DocType) %>% 
     mutate(Id = as.double(Id))
   
   bind_rows(raw_cols, searched) %>% 
     inner_join(original_titles, by = "Id") %>% 
     select(
       ID = Id,
-      Title,
+      Title = OriginalTitle,
       Year = Y,
       Authors = AA,
       Journal = J.JN,
-      Pub_type = Pt,
+      Pub_type = DocType,
       DOI,
       Citations = CC,
       References = RId
     ) %>%
     filter(!is.na(ID)) %>% 
-    mutate(Pub_type = pub.key(Pub_type)) %>% 
     rowwise() %>% 
     mutate(
       Authors = paste(Authors$AuN, collapse = ", "),
