@@ -143,11 +143,12 @@ fill.template.row <- function(row){
   
 }
 
+# vectorized formatting function
 format.tidy <- function(searched) {
   
   original_titles <- fast.scrape(searched$Id) %>% 
     select(Id = PaperID, Title = OriginalTitle) %>% 
-    mutate(Id = as.integer(Id))
+    mutate(Id = as.double(Id))
   
   bind_rows(raw_cols, searched) %>% 
     inner_join(original_titles, by = "Id") %>% 
@@ -165,14 +166,10 @@ format.tidy <- function(searched) {
     filter(!is.na(ID)) %>% 
     rowwise() %>% 
     mutate(
-      Authors = ifelse(length(Authors) == 0, NA, paste(unique(flatten_chr(Authors)), collapse = ', ')),
+      Authors = paste(Authors$AuN, collapse = ", "),
       References = References %0% NA
     ) %>% 
-    ungroup() %>% 
-    mutate(
-      Pub_type = pub.key(Pub_type),
-      across(where(is.double), as.integer)
-    )
+    ungroup()
   
 }
 
