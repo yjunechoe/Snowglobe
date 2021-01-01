@@ -164,6 +164,7 @@ format.tidy <- function(searched) {
       References = RId
     ) %>%
     filter(!is.na(ID)) %>% 
+    mutate(Pub_type = pub.key(Pub_type)) %>% 
     rowwise() %>% 
     mutate(
       Authors = paste(Authors$AuN, collapse = ", "),
