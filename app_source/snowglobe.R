@@ -154,7 +154,7 @@ format.tidy <- function(searched) {
     inner_join(original_titles, by = "Id") %>% 
     select(
       ID = Id,
-      Title = Ti,
+      Title,
       Year = Y,
       Authors = AA,
       Journal = J.JN,
