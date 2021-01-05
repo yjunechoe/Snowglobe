@@ -228,7 +228,7 @@ scrape <- function(ID){
     query = paste0('Id=', ID),
     atts = c("Id", "Ti", "Y", "AA.AuN", "J.JN", "Pt", "RId", "CC", "DOI")
   )
-  if (!is.null(article)){
+  if (!rlang::is_empty(article)){
     select(article, -c('logprob', 'prob'))
   } else {
     tibble(ID = NA)

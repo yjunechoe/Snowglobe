@@ -28,7 +28,7 @@ server <- function(input, output) {
     filename = function() {"Template.csv"},
     content = function(file) {
       write_csv(tibble(Title = character(), DOI = character(),
-                       PMID = numeric()),
+                       PMID = numeric(), PMCID = numeric()),
                 file)
     }
   )
