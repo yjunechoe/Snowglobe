@@ -118,10 +118,7 @@ pubmed.search <- function(pubmedID, type = "pubmed"){
     if (!is.null(info) && "doi" %in% info$idtype) {
       doi.search(info$value[info$idtype == "doi"])
     } else {
-      output <- list() # TODO switch out for list2() and tidyeval with `:=`
-      col_name <- switch(type, "pubmed" = "PMID", "pmc" = "PMCID")
-      output[[col_name]] <- pubmedID
-      output
+      list2(!!switch(type, "pubmed" = "PMID", "pmc" = "PMCID") := pubmedID)
     }
     
   }

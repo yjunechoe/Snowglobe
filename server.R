@@ -17,7 +17,7 @@ server <- function(input, output) {
     if(is.null(input$RunningList)) return (NULL)
     if(file.exists(input$RunningList$datapath)){
       read.csv(input$RunningList$datapath)
-    } else {return(NULL)}
+    }
   })
   
   
@@ -38,73 +38,6 @@ server <- function(input, output) {
     if(is.null(input$RunningListTemplate)) return (NULL)
     if(file.exists(input$RunningListTemplate$datapath)){
       read.csv(input$RunningListTemplate$datapath)
-    } else {return(NULL)}
-  })
-  
-  # search papers in template
-  template_searched <- reactive({
-    if(!is.null(uploaded_template())){
-      
-      show_modal_progress_line(text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template..."))
-      
-      tic <- Sys.time()
-      
-      
-      result <- col_format
-      
-      possibly_na <- function(f,x){
-        possibly(f, otherwise = NA)(x)
-      }
-      
-      df <- as_tibble(uploaded_template()) %>% 
-        modify(~ifelse(.x == "", NA, .x))
-      
-      for (i in 1:nrow(df)){
-        
-        update_modal_progress(
-          value = i / nrow(df),
-          text = glue("Looking up {nrow(uploaded_template())} paper(s) uploaded from template...  
-                      {i}/{nrow(df)} ({round(i / nrow(df), 2)*100}%)")
-          )
-        
-        temp <- NA
-        while (identical(temp, NA)){
-          if (!is.na(df[i,]$DOI)){
-            temp <- possibly_na(doi.search.tidy, df[i,]$DOI)
-          }
-          if (!is.na(df[i,]$Title)){
-            temp <- possibly_na(title.search.tidy, df[i,]$Title)
-          }
-          if (!is.null(df$PMID) && !is.na(df[i,]$PMID)){
-            PMID_info <- PMID.search(df[i,]$PMID)
-            temp <- possibly_na(doi.search.tidy, PMID_info[1,]$DOI)
-          }
-          if (identical(temp, NA)){
-            temp <- df[i,] %>% 
-              select(Title, DOI)
-          }
-        }
-        
-        result <- bind_rows(result, temp)
-      }
-      
-      remove_modal_progress()
-      
-      toc <- Sys.time() - tic
-      
-      showModal(modalDialog(
-        title = strong(glue("Lookup Complete - {round(toc[[1]], 2)} {units(toc)}
-                            - {nrow(filter(result, is.na(ID)))} Failed to Find")),
-        HTML(glue('Could not find {nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers.
-                  <br> Try manually searching for them on the Microsoft Academic
-                  {a("search engine", href="https://academic.microsoft.com/home")}.<br>
-                  <br> If there are missing IDs, please fill them in for as many papers as you can find.
-                  <br> Then, remove any papers with missing IDs from your running list.')),
-        downloadButton("RunningListDownload", "Download Formatted Running List"),
-        footer = NULL, easyClose = TRUE))
-      
-      result
-      
     }
   })
   
