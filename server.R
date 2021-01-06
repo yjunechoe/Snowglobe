@@ -986,5 +986,11 @@ server <- function(input, output) {
     opts <<- list(key = Sys.getenv("ELSEVIER_SCOPUS_KEY"))
   })
   
+  ### Debugger ###
+  observeEvent(input$DebugBrowser, {
+    browser()
+  })
+  
+  
   
 }

@@ -146,7 +146,12 @@ ui <- dashboardPage(skin = "purple",
                                                 h4(strong("Elsevier Key"), "<",
                                                    a("GET", href="https://dev.elsevier.com"), "> :"),
                                                 placeholder = "(Leave blank to use stored key)")
-                                  )
+                                  ),
+                                  box(width = 2,
+                                      
+                                      h3(strong("Developer tools", align = "center")),
+                                      actionButton("DebugBrowser", "Call debugger")
+                                      )
                                 )
                         ),
                         tabItem(tabName = "AboutTab",
