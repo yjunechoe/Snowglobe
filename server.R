@@ -44,13 +44,8 @@ server <- function(input, output) {
   
   # intermediate df
   running_list <- reactive({
-    uploaded_list() %||% template_searched()
+    uploaded_list()
   })
-  # boolean - is the df uploaded as a template?
-  is_template <- reactive({
-    !is.null(running_list()) && identical(running_list(), template_searched())
-  })
-  
   
   
   # Download running list
@@ -110,11 +105,10 @@ server <- function(input, output) {
   
   
   previously_snowballed <- reactive({
-    if(!is_template()){
-      running_list()$Searched_from %>% 
-        unique() %>% 
-        map(~str_match_all(.x, "\\d+")) %>% 
-        unlist()}
+    running_list()$Searched_from %>% 
+      unique() %>% 
+      map(~str_match_all(.x, "\\d+")) %>% 
+      unlist()
   })
   
   
@@ -125,27 +119,6 @@ server <- function(input, output) {
     valueBox(length(running_list()),
              color = "red",
              subtitle = "Last Search")
-  })
-  
-  output$LastSearchValue <- renderValueBox({
-    valueBox(
-      if(!is_template()){
-        last_date <- running_list()[nrow(running_list()),]$Date
-        if (length(last_date) == 0) { NA
-        } else {str_extract(last_date, "^\\w{3} \\w{3} \\d+")}
-      } else {NA},
-      color = "red",
-      subtitle = "Last Search")
-  })
-  
-  output$SearchNumberValue <- renderValueBox({
-    valueBox(
-      if(!is_template()){
-        unique(running_list()$Searched_from) %>% 
-          str_detect("\\d") %>% sum
-      } else {0},
-      color = "aqua",
-      subtitle = "Total Searches")
   })
   
   output$PapersSnowballedValue <- renderValueBox({
@@ -338,25 +311,31 @@ server <- function(input, output) {
       
       n_staged <- nrow(staging_file())
       
-      result <- imap_dfr(
-        1:n_staged,
+      result <- map(
+        1L:n_staged,
         ~ {
           
           update_modal_progress(
-            value = .y / n_staged,
+            value = .x / n_staged,
             text = glue("Looking up and staging {n_staged} paper(s) from template...
-                      {.y}/{n_staged} ({round(.y / n_staged, 2)*100}%)")
+                      {.x}/{n_staged} ({round(.x / n_staged, 2)*100}%)")
           )
           
-          fill.template.row(staging_file()[.x,])
+          safely(fill.template.row, otherwise = staging_file()[.x,])(staging_file()[.x,])
           
         }
       )
       
+      
       update_modal_progress(value = 1, text = "Formatting...")
       
+      errors <- map(result, 2L)
+      result <- bind_rows(map(result, 1L))
+      
+      if (any(!map_lgl(errors, is.null))) browser()
+      
       missing_rows <- which(is.na(result$Id))
-      staged_dups <- sum(table(result$Id) > 1) # TODO notify duplicates in template
+      staged_dups <- sum(table(result$Id) > 1)
       
       result <- result %>% 
         filter(!is.na(Id)) %>% 
@@ -368,6 +347,8 @@ server <- function(input, output) {
       attr(result, "staged_dups") <- staged_dups
       
       remove_modal_progress()
+      
+      
       
       time_mark <- Sys.time() - time_mark
       
@@ -500,7 +481,7 @@ server <- function(input, output) {
   
   ### ValueBoxes ###
   output$ScreenedValue <- renderValueBox({
-    valueBox(nrow(running_list()),
+    valueBox(nrow(running_list()) %||% "Missing",
              color = "red",
              subtitle = "Papers Already Screened")
   })
@@ -556,7 +537,7 @@ server <- function(input, output) {
     
     show_modal_progress_line(text = glue("Looking up information about {length(new())} discovered paper(s)..."))
     
-    result <- imap_dfr(
+    result <- imap(
       new(),
       ~{
         update_modal_progress(
@@ -564,12 +545,18 @@ server <- function(input, output) {
           text = glue("Looking up information about {length(new())} discovered paper(s)...  
                        {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
         )
-        scrape(.x)
+        safely(scrape, otherwise = tibble(ID = .x))(.x)
       })
+    
+    
     
     update_modal_progress(value = 1, text = "Formatting...")
     
-    result <- format.tidy(result)
+    errors <- map(result, 2L)
+    result <- format.tidy(bind_rows(map(result, 1L)))
+    
+    if (any(!map_lgl(errors, is.null))) browser()
+    
     
     remove_modal_progress()
     
@@ -621,7 +608,7 @@ server <- function(input, output) {
                 Output: {nrow(result)} papers. <br>
                 Abstracts Failed to Fetch: {ifelse(input$GetAbstracts, sum(is.na(result$Abstract)), "Not Searched")} 
                 {if(input$GetAbstracts){
-                paste0(" (", round(nrow(filter(result, Pub_type == pub.key(1) & is.na(Abstract)))/
+                paste0(" (", round(nrow(filter(result, Pub_type == "Journal" & is.na(Abstract)))/
                 nrow(filter(result, Pub_type == pub.key(1))), 2),
                 "% of Journal Articles)")
                 }}')),

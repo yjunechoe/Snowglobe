@@ -228,7 +228,7 @@ scrape <- function(ID){
   if (!rlang::is_empty(article)){
     select(article, -c('logprob', 'prob'))
   } else {
-    tibble(ID = NA)
+    tibble(ID = ID) # TODO maybe make this return output from fast.scrape()
   }
 }
 
