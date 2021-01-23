@@ -27,19 +27,116 @@ server <- function(input, output) {
   output$RunningListTemplateDownload <- downloadHandler(
     filename = function() {"Template.csv"},
     content = function(file) {
-      write_csv(tibble(Title = character(), DOI = character(),
-                       PMID = numeric(), PMCID = numeric()),
-                file)
+      write_csv(tibble(
+        Title = character(),
+        DOI = character(),
+        PMID = numeric(),
+        PMCID = numeric()
+      ), file)
     }
   )
   
-  # process uploaded template
-  uploaded_template <- reactive({
+  # read uploaded template
+  uploaded_running_list_template <- reactive({
     if(is.null(input$RunningListTemplate)) return (NULL)
     if(file.exists(input$RunningListTemplate$datapath)){
-      read.csv(input$RunningListTemplate$datapath)
+      read_csv(input$RunningListTemplate$datapath, col_types = 'ccnn')
     }
   })
+  
+  filled_running_list_template <- reactiveVal(NULL)
+  
+  # processes uploaded template
+  observeEvent(input$RunningListTemplate, {
+    if (!is.null(uploaded_running_list_template())) {
+      if (identical(colnames(uploaded_running_list_template()), c("Title", "DOI", "PMID", "PMCID"))) {
+        uploaded_running_list <- uploaded_running_list_template()
+        n_uploaded <- nrow(uploaded_running_list)
+        
+        if (n_uploaded == 0) {
+          showModal(modalDialog(
+            title = strong("ACTION BLOCKED: No papers in template"),
+            HTML("Please fill out the template before uploading."),
+            footer = NULL, easyClose = TRUE
+          ))
+        } else {
+          
+          # Fill template
+          show_modal_progress_line(text = glue("Looking up {nrow(staging_file())} paper(s) from template..."))
+          time_mark <- Sys.time()
+          result <- map(1L:n_uploaded, ~ {
+              update_modal_progress(
+                value = .x / n_uploaded,
+                text = glue("Looking up and staging {n_uploaded} paper(s) from template...
+                            {.x}/{n_uploaded} ({round(.x / n_uploaded, 2)*100}%)")
+              )
+              safely(fill.template.row, otherwise = uploaded_running_list[.x,])(uploaded_running_list[.x,])
+            }
+          )
+          
+          # Format and save filled template
+          update_modal_progress(value = 1, text = "Formatting...")
+          errors <- map(result, 2L)
+          result <- bind_rows(map(result, 1L))
+          missing_rows <- which(is.na(result$Id))
+          result <- format.tidy(result)
+          filled_running_list_template(result)
+          remove_modal_progress()
+          
+          # Dialog
+          showModal(modalDialog(
+            title = strong(glue("Complete: {nrow(result)}/{n_uploaded} papers found")),
+            if (length(missing_rows) == 0) {
+              tags$p("Download the filled template and upload it back in as", tags$strong("Snowglobe-Formatted Running List"))
+            } else {
+              tags$div(
+                tags$p("One or more papers from the uploaded running list could not be found in the database"),
+                tags$p("The papers in the following rows could not be found:"),
+                tags$p(
+                  paste(missing_rows, collapse = ", "),
+                  style = "margin:10px; padding:10px; background-color:ghostwhite; border: 1px solid steelblue; line-height:1.7em;"
+                ),
+                tags$div(
+                  tags$p("Options for missing rows:"),
+                  tags$li("Check for any typos/add more details and re-try"),
+                  tags$li("Manually search MAG. and add in IDs to partially-filled template"),
+                  tags$li("If cannot be found on MAG, separately search-by-hand"),
+                  style = "margin:10px; border: 3px dashed salmon; padding:10px; background-color:lightpink;"
+                ),
+                if (nrow(result) > 0) { tags$p("Download the partially-filled template below:") }
+              )
+            },
+            downloadButton("FilledRunningListDownload", label = "Download Filled Running-List Template"),
+            footer = NULL, easyClose = TRUE
+          ))
+          
+        }
+        
+      } else {
+        showModal(modalDialog(
+          title = strong("ACTION BLOCKED: Incorrect formatting of the template"),
+          HTML("The uploaded file do not have follow the formatting specified in the template.<br>
+                Please fill out the rows of the template file without modifying the column names."),
+          footer = NULL, easyClose = TRUE
+        ))
+      }
+    }
+  })
+  
+  output$FilledRunningListDownload <- downloadHandler(
+    filename = function() { paste0("Running_List", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".csv") },
+    content = function(file) {
+      filled_running_list_template() %>% 
+        mutate(
+          Date = format(Sys.time(), "%a %b %d %X %Y"),
+          Searched_from = "Start",
+          Abstract = NA
+        ) %>% 
+        relocate(Date, Searched_from) %>% 
+        write_csv(file)
+    }
+  )
+  
   
   
   # intermediate df
@@ -273,8 +370,8 @@ server <- function(input, output) {
       HTML("First search? Download the template below, fill it out as much as you can, then upload it to be formatted<br>"),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
       fileInput(inputId = "RunningListTemplate", "From Database Search (to be Formatted)"),
-      HTML("Already have a running list from snowballer? Upload it here.<br>"),
-      fileInput(inputId = "RunningList", "Snowballer-Formatted Running List"),
+      HTML("Already have a running list from Snowglobe? Upload it here.<br>"),
+      fileInput(inputId = "RunningList", "Snowglobe-Formatted Running List"),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
       ))
@@ -713,9 +810,6 @@ server <- function(input, output) {
     }
     
   })
-  
-  
-  # TODO: add way to fill abstracts easily (separate ID+abstracts df in a diff tab that reactively gets left_joined?)
   
   
   
