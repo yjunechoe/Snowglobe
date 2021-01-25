@@ -513,8 +513,6 @@ server <- function(input, output) {
   
   observeEvent(input$PushBulk, {
     
-    browser()
-    
     # remove duplicates from staging area + previous snowballs
     dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, previously_snowballed())]
     
