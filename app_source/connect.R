@@ -3,7 +3,7 @@ con <- dbConnect(
   drv = MariaDB(),
   host = "nortonlab.coeodvofteoq.us-east-2.rds.amazonaws.com",
   username = 'nortonadmin',
-  password = 'z87knhs5bb',
+  password = 'PVk9BU2LUqk',
   port = 3306
 )
 dbSendQuery(con, "use snowglobe")

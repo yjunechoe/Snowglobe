@@ -38,6 +38,68 @@ server <- function(input, output) {
     if(is.null(input$RunningListTemplate)) return (NULL)
     if(file.exists(input$RunningListTemplate$datapath)){
       read.csv(input$RunningListTemplate$datapath)
+    } else {return(NULL)}
+  })
+  
+  # search papers in template
+  template_searched <- reactive({
+    if(!is.null(uploaded_template())){
+      
+      show_modal_progress_line(text = glue("Looking up and staging {nrow(uploaded_template())} paper(s) from template..."))
+      
+      time_mark <- Sys.time()
+      
+      n_staged <- nrow(uploaded_template())
+      
+      result <- map(
+        1L:n_staged,
+        ~ {
+          
+          update_modal_progress(
+            value = .x / n_staged,
+            text = glue("Looking up and staging {n_staged} paper(s) from template...
+                      {.x}/{n_staged} ({round(.x / n_staged, 2)*100}%)")
+          )
+          
+          safely(fill.template.row, otherwise = uploaded_template()[.x,])(uploaded_template()[.x,])
+          
+        }
+      )
+      
+      
+      update_modal_progress(value = 1, text = "Formatting...")
+      
+      errors <- map(result, 2L)
+      result <- bind_rows(map(result, 1L))
+      
+      if (any(!map_lgl(errors, is.null))) browser()
+      
+      missing_rows <- which(is.na(result$Id))
+      staged_dups <- sum(table(result$Id) > 1)
+      
+      result <- result %>% 
+        filter(!is.na(Id)) %>% 
+        distinct(Id, .keep_all = TRUE)
+      
+      result <- possibly_null(format.tidy, filter(result, !is.na(Id))) %||% bind_cols(uploaded_template(), ID = NA)
+      
+
+      remove_modal_progress()
+      
+      toc <- Sys.time() - tic
+      
+      showModal(modalDialog(
+        title = strong(glue("Lookup Complete - {round(toc[[1]], 2)} {units(toc)}
+                            - {nrow(filter(result, is.na(ID)))} Failed to Find")),
+        HTML(glue('Could not find {nrow(filter(result, is.na(ID)))} of the {nrow(result)} papers.
+                  <br> Try manually searching for them on the Microsoft Academic
+                  {a("search engine", href="https://academic.microsoft.com/home")}.<br>
+                  <br> If there are missing IDs, please fill them in for as many papers as you can find.
+                  <br> Then, remove any papers with missing IDs from your running list.')),
+        downloadButton("RunningListDownload", "Download Formatted Running List"),
+        footer = NULL, easyClose = TRUE))
+      
+      result
     }
   })
   
@@ -273,8 +335,8 @@ server <- function(input, output) {
       HTML("First search? Download the template below, fill it out as much as you can, then upload it to be formatted<br>"),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
       fileInput(inputId = "RunningListTemplate", "From Database Search (to be Formatted)"),
-      HTML("Already have a running list from snowballer? Upload it here.<br>"),
-      fileInput(inputId = "RunningList", "Snowballer-Formatted Running List"),
+      HTML("Already have a running list from SnowGlobe? Upload it here.<br>"),
+      fileInput(inputId = "RunningList", "SnowGlobe-Formatted Running List"),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
       ))
