@@ -56,7 +56,7 @@ server <- function(input, output) {
         if (n_uploaded == 0) {
           showModal(modalDialog(
             title = strong("ACTION BLOCKED: No papers in template"),
-            HTML("Please fill out the template before uploading."),
+            tags$p("Please fill out the template before uploading."),
             footer = NULL, easyClose = TRUE
           ))
         } else {
@@ -393,7 +393,7 @@ server <- function(input, output) {
   # upload file to stage
   staging_file <- reactive({
     if(!is.null(input$FileToStage) && file.exists(input$FileToStage$datapath)) {
-      read_csv(input$FileToStage$datapath)
+      read_csv(input$FileToStage$datapath, col_types = 'ccnn')
     }
   })
   
@@ -513,11 +513,13 @@ server <- function(input, output) {
   
   observeEvent(input$PushBulk, {
     
+    browser()
+    
+    # remove duplicates from staging area + previous snowballs
     dups <- staged_file_searched()$ID[staged_file_searched()$ID %in% c(data$staged$ID, previously_snowballed())]
     
     dup_removed <- staged_file_searched() %>%
-      filter(!row_number() %in% attr(staged_file_searched(), "missing_rows"),
-             !ID %in% dups)
+      filter(!ID %in% dups)
     
     # TODO - diff options for diff size connections (block action when 10,000+)
     data$staged <- bind_rows(data$staged, dup_removed)
@@ -527,9 +529,9 @@ server <- function(input, output) {
       HTML(glue("{nrow(dup_removed)} papers will be staged after removing
                 {length(dups) + attr(staged_file_searched(), 'staged_dups')} duplicates.<br>
                 Click on a row to individually remove a paper from the staging area.<br><br>
-                Proceed to the <b>Run Search</b> tab after reviewing your staged papers.")),
+                Proceed to the <strong>Run Search</strong> tab after reviewing your staged papers.")),
       footer = NULL, easyClose = TRUE
-      ))
+    ))
     
   })
   
