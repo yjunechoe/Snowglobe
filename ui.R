@@ -6,7 +6,8 @@ source('app_source/snowglobe.R')
 
 options(shiny.maxRequestSize=500*1024^2)
 
-ui <- dashboardPage(skin = "purple",
+ui <- dashboardPage(
+                    skin = "purple",
                     dashboardHeader(title = "SnowGlobe"),
                     dashboardSidebar(
                       sidebarMenu(
@@ -20,6 +21,8 @@ ui <- dashboardPage(skin = "purple",
                       )
                     ),
                     dashboardBody(
+                      #testing
+                      tags$head(includeHTML(("google_analytics.html"))),
                       # CSS
                       tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "snowglobe.css")),
                       # Navigation prompt
