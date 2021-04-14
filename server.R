@@ -65,13 +65,13 @@ server <- function(input, output) {
           show_modal_progress_line(text = glue("Looking up {nrow(staging_file())} paper(s) from template..."))
           time_mark <- Sys.time()
           result <- map(1L:n_uploaded, ~ {
-              update_modal_progress(
-                value = .x / n_uploaded,
-                text = glue("Looking up and staging {n_uploaded} paper(s) from template...
+            update_modal_progress(
+              value = .x / n_uploaded,
+              text = glue("Looking up and staging {n_uploaded} paper(s) from template...
                             {.x}/{n_uploaded} ({round(.x / n_uploaded, 2)*100}%)")
-              )
-              safely(fill.template.row, otherwise = uploaded_running_list[.x,])(uploaded_running_list[.x,])
-            }
+            )
+            safely(fill.template.row, otherwise = uploaded_running_list[.x,])(uploaded_running_list[.x,])
+          }
           )
           
           # Format and save filled template
@@ -358,7 +358,7 @@ server <- function(input, output) {
       fileInput(inputId = "FileToStage", ""),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
-      ))
+    ))
     
     
     
@@ -374,7 +374,7 @@ server <- function(input, output) {
       fileInput(inputId = "RunningList", "Snowglobe-Formatted Running List"),
       textOutput("dummy"),
       footer = NULL, easyClose = TRUE
-      ))
+    ))
   })
   
   # download template
@@ -397,7 +397,7 @@ server <- function(input, output) {
     }
   })
   
-
+  
   # searching modal
   staged_file_searched <- reactive({
     if(!is.null(staging_file())){
@@ -453,7 +453,7 @@ server <- function(input, output) {
         title = strong(glue("Staging Complete - {round(time_mark[[1]], 2)} {units(time_mark)} - ",
                             if (length(missing_rows) > 0) {"Failed on {length(missing_rows)}/{n_staged} Papers."}
                             else {"All {n_staged} staged papers found!"})),
-                  HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
+        HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
                   push the uploaded papers to the staging area.</b><br><br>')),
         h4(strong("High Density Papers"), align = "center"),
         HTML("Over 1000 connections (citations + references) were found for these papers.
@@ -503,11 +503,11 @@ server <- function(input, output) {
     df <- staged_file_searched() 
     df$total_links <- rowSums(df[,c("Citations", "References")], na.rm = T)
     df$high_d <- ifelse(df$total_links >= 1000, TRUE, FALSE)
-      df <- df %>%
+    df <- df %>%
       filter(!is.na(Year)) %>%
       filter(high_d == TRUE) %>%
       select(Title, Citations, References)
-  datatable(df, options = list(dom = 't'), rownames = FALSE)
+    datatable(df, options = list(dom = 't'), rownames = FALSE)
   })
   
   
@@ -592,20 +592,20 @@ server <- function(input, output) {
   output$UniqueValue <- renderValueBox({
     tryCatch({
       valueBox(length(unique_found()) - length(new()),
-        color = "purple",
-        subtitle = "Previously-Found Papers")
+               color = "purple",
+               subtitle = "Previously-Found Papers")
     }, error = function(cond){
-        valueBox(0,
-          color = "purple",
-          subtitle = "Previously-Found Papers")
+      valueBox(0,
+               color = "purple",
+               subtitle = "Previously-Found Papers")
     })
   })
   
   output$NewValue <- renderValueBox({
     tryCatch({
       valueBox(length(new()),
-        color = "yellow",
-        subtitle = "New Papers Detected")
+               color = "yellow",
+               subtitle = "New Papers Detected")
     }, error=function(cond){
       valueBox(0,
                color = "yellow",
@@ -750,6 +750,32 @@ server <- function(input, output) {
       arrange(-Density)
   })
   
+  #RIS Formatting
+  RIS_output <- reactive({
+    x <- comprehensive_output()
+    x <- x %>% select(Pub_type, Title, Year, Authors, ID, Journal, DOI)
+    colnames(x) <- c("TY", "TI", "PY", "AU", "ID", "JF", "DO")
+    x$TY <- ifelse(x$TY == "", "Unknown", x$TY) 
+    x$PY <- as.character(x$PY)
+    x$ID <- as.character(x$ID)
+    x$AU <- str_to_title(x$AU)
+    x$JF <- str_to_title(x$JF)
+    
+    z <- data.frame(str_split(x$AU, pattern = ",", simplify = T))
+    au_vars <- paste0("AU", seq(1,ncol(z)))
+    names(z) <- au_vars
+    x <- cbind(x,z)
+    x$ER <- "zyxw"
+    
+    ris <- pivot_longer(x, TY:ER, names_to = "var")
+    ris$var <- str_replace(ris$var, pattern = regex("AU.*"), "AU")
+    ris <- ris %>% filter(!value == "")
+    ris$var <- ifelse(ris$var == "AU" & str_detect(ris$value, ","), "xx", ris$var)
+    ris <- ris %>% filter(!var == "xx")
+    ris$value <- str_replace(ris$value, pattern = "zyxw", "")
+    paste0(ris$var, " - ", ris$value)
+  })
+  
   
   ### Display Output Table ###
   
@@ -767,7 +793,7 @@ server <- function(input, output) {
   
   # Click ID or DOI cell to navigate
   observeEvent(input$OutputTable_cells_selected, {
-
+    
     if (nrow(input$OutputTable_cells_selected) == 1 && !is.na(input$OutputTable_cells_selected[1,2])) {
       
       if (input$OutputTable_cells_selected[1,2] == 1) {
@@ -820,6 +846,10 @@ server <- function(input, output) {
     content = function(file) {write_csv(final_output(), file)}
   )
   
+  output$DownloadRIS <- downloadHandler(
+    filename = function() {paste0("Search_Output", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".ris")},
+    content = function(file) {write(RIS_output(), file)}
+    )
   
   
   
@@ -831,7 +861,7 @@ server <- function(input, output) {
   
   
   ## Summary Plots ##
-
+  
   # years plot
   
   years_plot <- reactive({

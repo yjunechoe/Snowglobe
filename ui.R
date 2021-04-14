@@ -87,6 +87,7 @@ ui <- dashboardPage(skin = "purple",
                                       h3(strong("Download"), align = "center"),
                                       downloadButton("DownloadOutput",
                                                      label = "Download Output (.csv)"),
+                                      downloadButton("DownloadRIS", label = "Download Output (.RIS)"),
                                       downloadButton("UpdatedRunningListDownload", label = "Download Running List"))
                                 )
                         ),
