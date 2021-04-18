@@ -3,3 +3,5 @@
 SnowGlobe is a program that assists with literature searching, using a technique called snowballing. Snowballing has emerged as the [gold standard](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1283190/) for comprehensive literature reviews. The process of snowballing takes all known relevant papers and searches through their references (which papers they cite) and citations (which papers cite them). Doing this by hand is an extremely time-consuming process, and until now, there was no way to do this process in bulk. SnowGlobe has several time-saving features such as automatic duplicate removal, as well as the ability to track which titles you have already screened so you don't have to screen them multiple times. 
 
 Proceed to the **Prepare Search** Tab to enter the papers you'd like to search (and the papers you have already searched, if applicable).
+
+We are currently experiencing periodic outages. If upon search preparation you receive a red error message to contact the app author, please try your search again at a different time. We apologize for any inconvenience.
