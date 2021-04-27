@@ -4,4 +4,4 @@ SnowGlobe is a program that assists with literature searching, using a technique
 
 Proceed to the **Prepare Search** Tab to enter the papers you'd like to search (and the papers you have already searched, if applicable).
 
-We are currently experiencing periodic outages. If upon search preparation you receive a red error message to contact the app author, please try your search again at a different time. We apologize for any inconvenience.
+Demos for [basic searching](https://youtu.be/WQ_rwvMXFdU) and [the running list feature](https://youtu.be/VsNZ1QyaCGo) are available on YouTube.
