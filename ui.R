@@ -110,28 +110,28 @@ ui <- dashboardPage(
                                                     box(width = 12, plotOutput("JournalsPlot")),
                                                   )
                                                   
-                                         ),
-                                         tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
-                                                  
-                                                  fluidRow(
-                                                    
-                                                    box(width = 3,
-                                                        sliderInput("WordCloudSize", label = "Adjust Text Size",
-                                                                    value = 0.5, min = 0.1, max = 1, step = 0.1),
-                                                        dataTableOutput("WordTable")
-                                                    ),
-                                                    
-                                                    box(width = 9,
-                                                        h3(strong("Word Cloud from Titles"), align = "center"),
-                                                        br(),
-                                                        wordcloud2Output("WordCloud")
-                                                    )
-                                                    
-                                                  )
-                                         ),
-                                         tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
-                                                  visNetworkOutput("visualnetwork")
-                                         )
+                                          ) #,
+                                         # tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
+                                         #          
+                                         #          fluidRow(
+                                         #            
+                                         #            box(width = 3,
+                                         #                sliderInput("WordCloudSize", label = "Adjust Text Size",
+                                         #                            value = 0.5, min = 0.1, max = 1, step = 0.1),
+                                         #                dataTableOutput("WordTable")
+                                         #            ),
+                                         #            
+                                         #            box(width = 9,
+                                         #                h3(strong("Word Cloud from Titles"), align = "center"),
+                                         #                br(),
+                                         #                wordcloud2Output("WordCloud")
+                                         #            )
+                                         #            
+                                         #          )
+                                         # ),
+                                         # tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
+                                         #          visNetworkOutput("visualnetwork")
+                                         # )
                                   )
                                 )
                         ),
