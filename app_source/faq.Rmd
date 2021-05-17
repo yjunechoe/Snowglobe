@@ -1,0 +1,21 @@
+# FAQ
+
+**Does SnowGlobe interface with Covidence/Zotero/EndNote/abstrackr etc.?**
+
+SnowGlobe does not directly interface with any reference manager, screening tool, or other organizational software for systematic reviews and meta-analyses. However, SnowGlobe does have the option to download .RIS files of your search results. SnowGlobe’s input and output formats are simple enough to easily reformat for other software. 
+
+**Why Microsoft Academic (MA) and Microsoft Academic Graph (MAG)?**
+
+We chose MA and MAG for several reasons. Primarily, we chose them because they allow downloads of their entire database. This allows us to reformat, index, and extract only the essentials for quick searching. Importantly, MA and MAG also have an [open-source license](https://opendatacommons.org/licenses/by/1-0/), which allows us to do manipulate and use the database for our own purposes. No other reference/citation tracker such as SCOPUS, Web of Science, Google Scholar, etc. have/had this capability.
+
+**Why are there slight mismatches in the search totals sometimes?**
+
+The primary way SnowGlobe searches papers is through a downloadable database that we download a few times a year. We also use an API call to MA in some of our code, and the difference between the downloaded database and the online database cause these slight mismatches.
+
+**What do you plan to do now that Microsoft Academic has announced an end date?**
+
+At the end of 2021, Microsoft Academic announced that it would be no longer available on the web. However, they would allow for one final download of their database. We will restructure our code around this, and SnowGlobe should work for the foreseeable future. However, articles written after 2021 will not be able to be searched or found using SnowGlobe. We also hope that database managers at Google Scholar, Web of Science and SCOPUS will notice the functionality of our tool and integrate it into their applications.
+
+**Is your code available?**
+
+Yes, it is available [here](https://github.com/yjunechoe/Snowglobe). However, the database is password protected and most of the code depends heavily on accessing this database, so the code will not work if you launch it in R/RStudio. 
