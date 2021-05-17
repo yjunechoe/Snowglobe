@@ -17,6 +17,7 @@ ui <- dashboardPage(
                         menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
                         #menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
                         menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
+                        menuItem("FAQ", tabName = "FAQTab", icon = icon("question-circle")),
                         menuItem("About", tabName = "AboutTab", icon = icon("info"))
                       )
                     ),
@@ -158,6 +159,8 @@ ui <- dashboardPage(
                                       )
                                 )
                         ),
+                        tabItem(tabName = "FAQTab",
+                                includeMarkdown("app_source/faq.Rmd")),
                         tabItem(tabName = "AboutTab",
                                 includeMarkdown("app_source/about.Rmd"))
                       )
