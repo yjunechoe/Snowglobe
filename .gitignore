@@ -3,4 +3,5 @@
 google_analytics.html
 .DS_Store
 .Rproj.user
+Snowglobe.Rproj
 app_source/connect.R
