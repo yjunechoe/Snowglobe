@@ -1,4 +1,4 @@
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   
   #####################
@@ -367,7 +367,7 @@ server <- function(input, output) {
   observeEvent(input$RunningListOptions, {
     showModal(modalDialog(
       title = h3(strong("Upload Already-Searched Titles"), align = 'center'),
-      HTML("First search? Download the template below, fill it out as much as you can, then upload it to be formatted<br>"),
+      HTML("Have titles from a database search, but haven't used SnowGlobe? Download the template below, fill it out as much as you can, then upload it to be formatted<br>"),
       downloadButton("StagedTemplateDownload", label = "Download Template"),
       fileInput(inputId = "RunningListTemplate", "From Database Search (to be Formatted)"),
       HTML("Already have a running list from Snowglobe? Upload it here.<br>"),
@@ -750,6 +750,32 @@ server <- function(input, output) {
       arrange(-Density)
   })
   
+  #RIS Formatting
+  RIS_output <- reactive({
+    x <- comprehensive_output()
+    x <- x %>% select(Pub_type, Title, Year, Authors, ID, Journal, DOI)
+    colnames(x) <- c("TY", "TI", "PY", "AU", "ID", "JF", "DO")
+    x$TY <- ifelse(x$TY == "", "Unknown", x$TY) 
+    x$PY <- as.character(x$PY)
+    x$ID <- as.character(x$ID)
+    x$AU <- str_to_title(x$AU)
+    x$JF <- str_to_title(x$JF)
+    
+    z <- data.frame(str_split(x$AU, pattern = ",", simplify = T))
+    au_vars <- paste0("AU", seq(1,ncol(z)))
+    names(z) <- au_vars
+    x <- cbind(x,z)
+    x$ER <- "zyxw"
+    
+    ris <- pivot_longer(x, TY:ER, names_to = "var")
+    ris$var <- str_replace(ris$var, pattern = regex("AU.*"), "AU")
+    ris <- ris %>% filter(!value == "")
+    ris$var <- ifelse(ris$var == "AU" & str_detect(ris$value, ","), "xx", ris$var)
+    ris <- ris %>% filter(!var == "xx")
+    ris$value <- str_replace(ris$value, pattern = "zyxw", "")
+    paste0(ris$var, " - ", ris$value)
+  })
+  
   
   ### Display Output Table ###
   
@@ -820,6 +846,10 @@ server <- function(input, output) {
     content = function(file) {write_csv(final_output(), file)}
   )
   
+  output$DownloadRIS <- downloadHandler(
+    filename = function() {paste0("Search_Output", format(Sys.time(), "_%Y_%m_%d_%H_%M"), ".ris")},
+    content = function(file) {write(RIS_output(), file)}
+    )
   
   
   

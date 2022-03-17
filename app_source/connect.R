@@ -1,12 +1,12 @@
 # connect to database
-con <- dbConnect(
+pool <- dbPool(
   drv = MariaDB(),
   host = "nortonlab.coeodvofteoq.us-east-2.rds.amazonaws.com",
   username = 'nortonadmin',
   password = 'PVk9BU2LUqk',
-  port = 3306
+  port = 3306,
+  dbname = "snowglobe"
 )
-dbSendQuery(con, "use snowglobe")
 
 # microsoft academic API key
 Sys.setenv(MICROSOFT_ACADEMIC_KEY = "1cb802560edf4e9a81dc2ed363531287")

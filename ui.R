@@ -6,7 +6,8 @@ source('app_source/snowglobe.R')
 
 options(shiny.maxRequestSize=500*1024^2)
 
-ui <- dashboardPage(skin = "purple",
+ui <- dashboardPage(
+                    skin = "purple",
                     dashboardHeader(title = "SnowGlobe"),
                     dashboardSidebar(
                       sidebarMenu(
@@ -16,10 +17,13 @@ ui <- dashboardPage(skin = "purple",
                         menuItem("Search Statistics", tabName = "StatisticsTab", icon = icon("chart-bar")),
                         #menuItem("Manual", tabName = "ManualTab", icon = icon("file-alt")),
                         menuItem("Settings", tabName = "SettingsTab", icon = icon("gear")),
+                        menuItem("FAQ", tabName = "FAQTab", icon = icon("question-circle")),
                         menuItem("About", tabName = "AboutTab", icon = icon("info"))
                       )
                     ),
                     dashboardBody(
+                      #testing
+                      tags$head(includeHTML(("google_analytics.html"))),
                       # CSS
                       tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "snowglobe.css")),
                       # Navigation prompt
@@ -87,6 +91,7 @@ ui <- dashboardPage(skin = "purple",
                                       h3(strong("Download"), align = "center"),
                                       downloadButton("DownloadOutput",
                                                      label = "Download Output (.csv)"),
+                                      downloadButton("DownloadRIS", label = "Download Output (.RIS)"),
                                       downloadButton("UpdatedRunningListDownload", label = "Download Running List"))
                                 )
                         ),
@@ -106,28 +111,28 @@ ui <- dashboardPage(skin = "purple",
                                                     box(width = 12, plotOutput("JournalsPlot")),
                                                   )
                                                   
-                                         ),
-                                         tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
-                                                  
-                                                  fluidRow(
-                                                    
-                                                    box(width = 3,
-                                                        sliderInput("WordCloudSize", label = "Adjust Text Size",
-                                                                    value = 0.5, min = 0.1, max = 1, step = 0.1),
-                                                        dataTableOutput("WordTable")
-                                                    ),
-                                                    
-                                                    box(width = 9,
-                                                        h3(strong("Word Cloud from Titles"), align = "center"),
-                                                        br(),
-                                                        wordcloud2Output("WordCloud")
-                                                    )
-                                                    
-                                                  )
-                                         ),
-                                         tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
-                                                  visNetworkOutput("visualnetwork")
-                                         )
+                                          ) #,
+                                         # tabPanel(value = "WordCloudTab", h4(strong(" Word Cloud ")),
+                                         #          
+                                         #          fluidRow(
+                                         #            
+                                         #            box(width = 3,
+                                         #                sliderInput("WordCloudSize", label = "Adjust Text Size",
+                                         #                            value = 0.5, min = 0.1, max = 1, step = 0.1),
+                                         #                dataTableOutput("WordTable")
+                                         #            ),
+                                         #            
+                                         #            box(width = 9,
+                                         #                h3(strong("Word Cloud from Titles"), align = "center"),
+                                         #                br(),
+                                         #                wordcloud2Output("WordCloud")
+                                         #            )
+                                         #            
+                                         #          )
+                                         # ),
+                                         # tabPanel(value = "NetworkVizTab", h4(strong(" Network Visualization ")),
+                                         #          visNetworkOutput("visualnetwork")
+                                         # )
                                   )
                                 )
                         ),
@@ -154,6 +159,8 @@ ui <- dashboardPage(skin = "purple",
                                       )
                                 )
                         ),
+                        tabItem(tabName = "FAQTab",
+                                includeMarkdown("app_source/faq.Rmd")),
                         tabItem(tabName = "AboutTab",
                                 includeMarkdown("app_source/about.Rmd"))
                       )

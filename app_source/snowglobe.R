@@ -11,7 +11,7 @@ ipak <- function(pkg){
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
               "dbplyr", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
-              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB", "rlang")
+              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB", "rlang", "pool")
 
 ipak(packages)
 
@@ -179,7 +179,7 @@ format.tidy <- function(searched) {
 
 # backward search (references)
 backward.search <- function(ID){
-  tbl(con, "REFS") %>% 
+  tbl(pool, "REFS") %>% 
     filter(paperid %in% ID) %>% 
     select(Backward_References = refid, ID = paperid) %>% 
     dplyr::collect()
@@ -187,7 +187,7 @@ backward.search <- function(ID){
 
 # forward search (citations)
 forward.search <- function(ID){
-  tbl(con, "REFS") %>% 
+  tbl(pool, "REFS") %>% 
     filter(refid %in% ID) %>% 
     select(ID = refid, Forward_Citations = paperid) %>% 
     dplyr::collect()
@@ -254,7 +254,7 @@ scrape.abst.DOI <- function(DOI, db) {
 
 # local db search
 fast.scrape <- function(ID){
-  tbl(con, "PAPER_INFO") %>% 
+  tbl(pool, "PAPER_INFO") %>% 
     filter(PaperID %in% ID) %>% 
     dplyr::collect()
 }
