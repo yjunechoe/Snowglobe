@@ -9,8 +9,5 @@ Demos for [basic searching](https://youtu.be/WQ_rwvMXFdU) and [the running list 
 Please cite us with the following information: 
 
 McWeeny, S., Choe, J., & Norton, E. (2021). SnowGlobe: An Iterative Search Tool for Systematic Reviews and Meta-Analyses. https://doi.org/10.17605/OSF.IO/U25RN
-<<<<<<< HEAD
 
 **NOTE: We are temporarily experiencing an outage due to the termination of Microsoft Academic. We are working to have these issues resolved and apologize for the inconvenience. We are hoping to have a DOI-based version up by mid-March. Please reach out by email if you need assistance**
-=======
->>>>>>> 3494b487e1ec704004bfc0b86fd309d9afea96cd
