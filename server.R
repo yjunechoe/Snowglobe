@@ -384,8 +384,7 @@ server <- function(input, output, session) {
       write_csv(tibble(
         Title = character(),
         DOI = character(),
-        PMID = numeric(),
-        PMCID = numeric()
+        Year = numeric()
       ), file)
     }
   )
@@ -393,7 +392,7 @@ server <- function(input, output, session) {
   # upload file to stage
   staging_file <- reactive({
     if(!is.null(input$FileToStage) && file.exists(input$FileToStage$datapath)) {
-      read_csv(input$FileToStage$datapath, col_types = 'ccnn')
+      read_csv(input$FileToStage$datapath, col_types = 'ccn')
     }
   })
   
