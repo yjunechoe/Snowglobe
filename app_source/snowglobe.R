@@ -65,8 +65,30 @@ title.strip <- function(title){
   tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))
 }
 
-title.query.clean <- function(titles){
-  x <- title.strip(titles)
+
+title.query.clean <- function(title){
+  x <- title.strip(title)
+  x <- str_replace(x, "â", "")
+  title_words <- c(tolower(str_split(x, " ", simplify = T)))
+  title_words <- title_words[-which(title_words %in% words$stopwords)]
+  title2 <- str_replace_all(title_words, "(\\b\\w.*)", ', +\\1*')
+  title3 <- str_replace(title2, "^, ", "")
+  z <- paste(title3, collapse = ", ")
+}
+
+
+query.title <- function(title, year){
+  x <- as_tibble(dbGetQuery(con, paste0("SELECT * FROM PAPER_INFO WHERE MATCH(OriginalTitle) AGAINST (\'", title.query.clean(title), "\' IN BOOLEAN MODE) LIMIT 10;")))
+  x <- x %>% filter(Year == year)
+  if(nrow(x) != 0){
+    x$case <- seq(1, nrow(x), 1) 
+  }
+  return(x)
+}
+
+
+titles.query.clean <- function(title){
+  x <- title.strip(title)
   x <- str_replace(x, "â", "")
   z <- c()
   for(i in 1:length(x)){
@@ -80,11 +102,11 @@ title.query.clean <- function(titles){
 }
 
 
-query.titles <- function(titles, years){
+query.titles <- function(title, year){
   z <- tibble()
   for(i in 1:length(titles)){
     x <- as_tibble(dbGetQuery(con, paste0("SELECT * FROM PAPER_INFO WHERE MATCH(OriginalTitle) AGAINST (\'", title.query.clean(titles[i]), "\' IN BOOLEAN MODE) LIMIT 10;")))
-    x <- x %>% filter(Year == years[i])
+    x <- x %>% filter(Year == year[i])
     if(nrow(x) != 0){
      x$case <- seq(1, nrow(x), 1) 
     }
