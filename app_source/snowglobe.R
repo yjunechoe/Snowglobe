@@ -80,9 +80,14 @@ title.query.clean <- function(title){
 query.title <- function(title, year){
   x <- as_tibble(dbGetQuery(con, paste0("SELECT * FROM PAPER_INFO WHERE MATCH(OriginalTitle) AGAINST (\'", title.query.clean(title), "\' IN BOOLEAN MODE) LIMIT 10;")))
   x <- x %>% filter(Year == year)
-  if(nrow(x) != 0){
-    x$case <- seq(1, nrow(x), 1) 
-  }
+  x <- x %>%  add_column(case = -99)
+  if(nrow(x) == 1){
+    x$case <- 0
+  } else if (nrow(x) >= 2){
+    x$case <- seq(1, nrow(x), 1)
+  } else if (nrow(x) == 0){
+    x <- x %>% add_row(PaperID = NA, OriginalTitle = title, Year = year, Doi = NA, case = -1)
+    }
   return(x)
 }
 
@@ -188,6 +193,10 @@ fill.template.row <- function(row){
     pubmed.search(row[["PMCID"]], type = "pmc") %!Id%
     row
   
+}
+
+fill.template.row2 <- function(row){
+  title.query(row[["Title"]])
 }
 
 # vectorized formatting function
