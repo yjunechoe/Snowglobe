@@ -79,7 +79,7 @@ title.query.clean <- function(title){
 
 query.title <- function(title, year){
   x <- as_tibble(dbGetQuery(con, paste0("SELECT * FROM PAPER_INFO WHERE MATCH(OriginalTitle) AGAINST (\'", title.query.clean(title), "\' IN BOOLEAN MODE) LIMIT 10;")))
-  x <- x %>% filter(Year == year)
+  x <- x %>% filter(Year == year | Year %in% c((year + 1), (year - 1)))
   x <- x %>%  add_column(case = -99)
   if(nrow(x) == 1){
     x$case <- 0
