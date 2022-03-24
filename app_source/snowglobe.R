@@ -74,6 +74,7 @@ title.query.clean <- function(title){
   title2 <- str_replace_all(title_words, "(\\b\\w.*)", ', +\\1*')
   title3 <- str_replace(title2, "^, ", "")
   z <- paste(title3, collapse = ", ")
+  return(z)
 }
 
 
@@ -90,6 +91,7 @@ query.title <- function(title, year){
     }
   return(x)
 }
+
 
 
 titles.query.clean <- function(title){
