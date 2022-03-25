@@ -62,11 +62,12 @@ key_vec <- c(
 
 # by title
 title.strip <- function(title){
-  tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))
+  tolower(str_squish(gsub("[^[:alnum:] ]", "", title)))
 }
 
 
 title.query.clean <- function(title){
+  x <- str_replace(x, "'s", "")
   x <- title.strip(title)
   x <- str_replace(x, "â", "")
   title_words <- c(tolower(str_split(x, " ", simplify = T)))
