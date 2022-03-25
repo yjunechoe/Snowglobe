@@ -11,7 +11,8 @@ ipak <- function(pkg){
 
 packages <- c("tidyverse", "shiny", "shinythemes", "DT", "tippy", "skimr", "visNetwork",
               "dbplyr", "DBI", "fulltext", "microdemic", "rcrossref", "rentrez", "data.table",
-              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB", "rlang", "pool")
+              "tidytext", "glue", "cleanNLP", "wordcloud2", "shinybusy", "RMariaDB", "rlang", "stringi",
+              "pool", "stringdist")
 
 ipak(packages)
 
@@ -60,67 +61,64 @@ key_vec <- c(
 ## ID Search Functions ##
 #########################
 
+stopwords <- unique(c(read_csv("data/stopwords_mariadb.csv")$stopwords, letters))
+word_freqs <- cleanNLP::word_frequency %>% 
+  filter(language == "en", !word %in% stopwords) %>% 
+  pull(frequency, word)
+get_word_freqs <- function(words) {
+  freqs <- coalesce(word_freqs[words], numeric(length(words)))
+  names(freqs) <- words
+  sort(freqs)
+}
+
 # by title
 title.strip <- function(title){
-  tolower(str_squish(gsub("[^[:alnum:] ]", " ", title)))
+  tolower(str_squish(gsub("[^[:alpha:] ]", " ", title)))
 }
 
 
-title.query.clean <- function(title){
-  x <- title.strip(title)
-  x <- str_replace(x, "â", "")
-  title_words <- c(tolower(str_split(x, " ", simplify = T)))
-  title_words <- title_words[-which(title_words %in% words$stopwords)]
-  title2 <- str_replace_all(title_words, "(\\b\\w.*)", ', +\\1*')
-  title3 <- str_replace(title2, "^, ", "")
-  z <- paste(title3, collapse = ", ")
-  return(z)
+make.title.query <- function(title, n_keywords = 10) {
+  # strip diacritics
+  title_stripped <- str_to_lower(str_squish(str_replace_all(title, "[^[:alpha:]\\s]", " ")))
+  titles_latin <- stringi::stri_trans_general(title_stripped, "Latin-ASCII")
+  keywords <- vapply(titles_latin, function(x) {
+    title_words <- str_split(x, "\\s+")[[1]]
+    title_content_words <- unique(title_words[!title_words %in% stopwords])
+    title_keywords <- get_word_freqs(title_content_words)[1L:min(length(title_content_words), n_keywords)]
+    str_flatten(paste0("+", names(title_keywords), "*"), collapse = ", ")
+  }, character(1), USE.NAMES = FALSE)
+  paste0("MATCH(OriginalTitle) AGAINST (\'", keywords, "\' IN BOOLEAN MODE)")
 }
 
-
-query.title <- function(title, year){
-  x <- as_tibble(dbGetQuery(con, paste0("SELECT * FROM PAPER_INFO WHERE MATCH(OriginalTitle) AGAINST (\'", title.query.clean(title), "\' IN BOOLEAN MODE) LIMIT 10;")))
-  x <- x %>% filter(Year == year | Year %in% c((year + 1), (year - 1)))
-  x <- x %>%  add_column(case = -99)
-  if(nrow(x) == 1){
-    x$case <- 0
-  } else if (nrow(x) >= 2){
-    x$case <- seq(1, nrow(x), 1)
-  } else if (nrow(x) == 0){
-    x <- x %>% add_row(PaperID = NA, OriginalTitle = title, Year = year, Doi = NA, case = -1)
-    }
-  return(x)
-}
-
-
-
-titles.query.clean <- function(title){
-  x <- title.strip(title)
-  x <- str_replace(x, "â", "")
-  z <- c()
-  for(i in 1:length(x)){
-    title_words <- c(tolower(str_split(x[i], " ", simplify = T)))
-    title_words <- title_words[-which(title_words %in% words$stopwords)]
-    title2 <- str_replace_all(title_words, "(\\b\\w.*)", ', +\\1*')
-    title3 <- str_replace(title2, "^, ", "")
-    z[i] <- paste(title3, collapse = ", ")
+make.year.query <- function(year, fuzzy = 1L) {
+  if (!is.na(year) && is.numeric(year)) {
+    year <- as.integer(year)
+    paste0("AND Year BETWEEN ", year - fuzzy, " AND ", year + fuzzy)
+  } else {
+    ""
   }
-  return(z)
 }
 
-
-query.titles <- function(title, year){
-  z <- tibble()
-  for(i in 1:length(titles)){
-    x <- as_tibble(dbGetQuery(con, paste0("SELECT * FROM PAPER_INFO WHERE MATCH(OriginalTitle) AGAINST (\'", title.query.clean(titles[i]), "\' IN BOOLEAN MODE) LIMIT 10;")))
-    x <- x %>% filter(Year == year[i])
-    if(nrow(x) != 0){
-     x$case <- seq(1, nrow(x), 1) 
-    }
-    z <- rbind(z, x) 
-  }
-  return(z)
+make.query.direct <- function(title, year = NA, limit = 20){
+  title_query <- make.title.query(title)
+  year_query <- make.year.query(year)
+  query <- paste("SELECT * FROM PAPER_INFO WHERE", title_query, year_query, "LIMIT", limit, ";")
+  results <- lapply(query, dbGetQuery, conn = pool)
+  matches_multiple <- which(vapply(results, nrow, integer(1), USE.NAMES = FALSE) > 1L)
+  results[matches_multiple] <- lapply(matches_multiple, function(idx) {
+    target <- title[idx]
+    matched <- results[[idx]]$OriginalTitle
+    results[[idx]][which.min(stringdist::stringdist(target, matched)), ]
+  })
+  results
 }
+
+# TODO
+# - join supplied title/year info to query results
+# --- needs special handling for 0-row non matches
+# - make.query.direct should pass down opts to title and year query fns
+# - make sure the AWS can handle {stringdist} installation
+
 
 title.search <- function(title){
   
