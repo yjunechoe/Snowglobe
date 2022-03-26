@@ -84,20 +84,21 @@ title.strip <- function(title){
 }
 
 
-make.title.query <- function(title, n_keywords = 10) {
+make.title.query <- function(title) {
   # strip diacritics
   title_stripped <- str_to_lower(str_squish(str_replace_all(title, "[^[:alpha:]\\s]", " ")))
   titles_latin <- stringi::stri_trans_general(title_stripped, "Latin-ASCII")
   keywords <- vapply(titles_latin, function(x) {
     title_words <- str_split(x, "\\s+")[[1]]
     title_content_words <- unique(title_words[!(title_words %in% stopwords) & nchar(title_words) > 3])
-    title_keywords <- get_word_freqs(title_content_words)[1L:min(length(title_content_words), n_keywords)]
+    # Phrase chunking step
+    title_keywords <- get_word_freqs(title_content_words)
     str_flatten(paste0("+", names(title_keywords), "*"), collapse = ", ")
   }, character(1), USE.NAMES = FALSE)
   paste0("MATCH(OriginalTitle) AGAINST (\'", keywords, "\' IN BOOLEAN MODE)")
 }
 
-make.year.query <- function(year, fuzzy = 1L) {
+make.year.query <- function(year, fuzzy = 3L) {
   if (!is.na(year) && is.numeric(year)) {
     year <- as.integer(year)
     paste0("AND Year BETWEEN ", year - fuzzy, " AND ", year + fuzzy,
@@ -113,15 +114,24 @@ make.query.direct <- function(title, year = NA, limit = 20){
   year_query <- make.year.query(year)
   paste("SELECT * FROM PAPER_INFO WHERE", title_query, year_query, "LIMIT", limit, ";")
 }
-send.query.direct <- function(queries) {
-  imap(queries, ~ {
-    print(.y)
-    dbGetQuery(pool, .x)
-  })
+augment.query.direct <- function(queries) {
+  ifelse(
+    str_detect(queries, "ORDER BY"),
+    str_replace(queries, " LIMIT \\d+", ", CHARACTER_LENGTH(OriginalTitle) LIMIT 1"),
+    str_replace(queries, " LIMIT \\d+", " ORDER BY CHARACTER_LENGTH(OriginalTitle) LIMIT 1")
+  )
+}
+## Not vectorized
+send.query.direct <- function(query) {
+  result <- dbGetQuery(pool, query)
+  if (nrow(result) == 20L) {
+    result <- dbGetQuery(pool, augment.query.direct(query))
+  }
+  result
 }
 format.query.direct <- function(results, title) {
-  n_matches <- vapply(results, nrow, integer(1), USE.NAMES = FALSE)
-  results[n_matches > 1L] <- lapply(which(n_matches > 1L), function(idx) {
+  n_matches <- map_int(results, nrow)
+  results[n_matches > 1L] <- map(which(n_matches > 1L), function(idx) {
     target <- title[idx]
     matched <- results[[idx]]$OriginalTitle
     results[[idx]][which.min(stringdist::stringdist(target, matched)), ]
@@ -129,11 +139,11 @@ format.query.direct <- function(results, title) {
   results[n_matches == 0] <- list(PAPER_INFO.template)
   cleaned <- bind_rows(results)
   names(cleaned) <- c("ID", "Title", "Year", "Pub_type", "DOI")
-  cleaned
+  as_tibble(cleaned)
 }
 query.direct <- function(title, year = NA, limit = 20) {
   queries <- make.query.direct(title, year, limit)
-  results <- send.query.direct(queries)
+  results <- map(queries, send.query.direct)
   format.query.direct(results, title)
 }
 
