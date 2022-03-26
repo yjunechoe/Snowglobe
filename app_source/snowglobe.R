@@ -90,7 +90,7 @@ make.title.query <- function(title, n_keywords = 10) {
   titles_latin <- stringi::stri_trans_general(title_stripped, "Latin-ASCII")
   keywords <- vapply(titles_latin, function(x) {
     title_words <- str_split(x, "\\s+")[[1]]
-    title_content_words <- unique(title_words[!(title_words %in% stopwords) & nchar(title_words) > 2]) # also remove nchar < 2 keywords
+    title_content_words <- unique(title_words[!(title_words %in% stopwords) & nchar(title_words) > 3])
     title_keywords <- get_word_freqs(title_content_words)[1L:min(length(title_content_words), n_keywords)]
     str_flatten(paste0("+", names(title_keywords), "*"), collapse = ", ")
   }, character(1), USE.NAMES = FALSE)
