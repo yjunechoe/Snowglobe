@@ -139,11 +139,16 @@ format.query.direct <- function(results, title) {
   results[n_matches == 0] <- list(PAPER_INFO.template)
   cleaned <- bind_rows(results)
   names(cleaned) <- c("ID", "Title", "Year", "Pub_type", "DOI")
+  cleaned$ID <- as.numeric(cleaned$ID)
   as_tibble(cleaned)
 }
+# For debugging
 query.direct <- function(title, year = NA, limit = 20) {
   queries <- make.query.direct(title, year, limit)
-  results <- map(queries, send.query.direct)
+  results <- imap(queries, ~{
+    cat(.y, "\n")
+    send.query.direct(.x)
+  })
   format.query.direct(results, title)
 }
 
