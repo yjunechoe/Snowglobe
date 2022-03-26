@@ -61,7 +61,7 @@ key_vec <- c(
 ## ID Search Functions ##
 #########################
 
-stopwords <- unique(c(read_csv("data/stopwords_mariadb.csv")$stopwords, letters))
+stopwords <- read_csv("data/stopwords_mariadb.csv")$stopwords
 word_freqs <- cleanNLP::word_frequency %>% 
   filter(language == "en", !word %in% stopwords) %>% 
   pull(frequency, word)
@@ -70,6 +70,13 @@ get_word_freqs <- function(words) {
   names(freqs) <- words
   sort(freqs)
 }
+PAPER_INFO.template <- data.frame(
+  PaperID = NA,
+  OriginalTitle = NA,
+  Year = NA,
+  DocType = NA,
+  Doi = NA
+)
 
 # by title
 title.strip <- function(title){
@@ -83,7 +90,7 @@ make.title.query <- function(title, n_keywords = 10) {
   titles_latin <- stringi::stri_trans_general(title_stripped, "Latin-ASCII")
   keywords <- vapply(titles_latin, function(x) {
     title_words <- str_split(x, "\\s+")[[1]]
-    title_content_words <- unique(title_words[!title_words %in% stopwords])
+    title_content_words <- unique(title_words[!(title_words %in% stopwords) & nchar(title_words) > 2]) # also remove nchar < 2 keywords
     title_keywords <- get_word_freqs(title_content_words)[1L:min(length(title_content_words), n_keywords)]
     str_flatten(paste0("+", names(title_keywords), "*"), collapse = ", ")
   }, character(1), USE.NAMES = FALSE)
@@ -93,29 +100,45 @@ make.title.query <- function(title, n_keywords = 10) {
 make.year.query <- function(year, fuzzy = 1L) {
   if (!is.na(year) && is.numeric(year)) {
     year <- as.integer(year)
-    paste0("AND Year BETWEEN ", year - fuzzy, " AND ", year + fuzzy)
+    paste0("AND Year BETWEEN ", year - fuzzy, " AND ", year + fuzzy,
+           " ORDER BY ABS(YEAR - ", year, ")")
   } else {
     ""
   }
 }
 
+# New db query functions
 make.query.direct <- function(title, year = NA, limit = 20){
   title_query <- make.title.query(title)
   year_query <- make.year.query(year)
-  query <- paste("SELECT * FROM PAPER_INFO WHERE", title_query, year_query, "LIMIT", limit, ";")
-  results <- lapply(query, dbGetQuery, conn = pool)
-  matches_multiple <- which(vapply(results, nrow, integer(1), USE.NAMES = FALSE) > 1L)
-  results[matches_multiple] <- lapply(matches_multiple, function(idx) {
+  paste("SELECT * FROM PAPER_INFO WHERE", title_query, year_query, "LIMIT", limit, ";")
+}
+send.query.direct <- function(queries) {
+  imap(queries, ~ {
+    print(.y)
+    dbGetQuery(pool, .x)
+  })
+}
+format.query.direct <- function(results, title) {
+  n_matches <- vapply(results, nrow, integer(1), USE.NAMES = FALSE)
+  results[n_matches > 1L] <- lapply(which(n_matches > 1L), function(idx) {
     target <- title[idx]
     matched <- results[[idx]]$OriginalTitle
     results[[idx]][which.min(stringdist::stringdist(target, matched)), ]
   })
-  results
+  results[n_matches == 0] <- list(PAPER_INFO.template)
+  cleaned <- bind_rows(results)
+  names(cleaned) <- c("ID", "Title", "Year", "Pub_type", "DOI")
+  cleaned
+}
+query.direct <- function(title, year = NA, limit = 20) {
+  queries <- make.query.direct(title, year, limit)
+  results <- send.query.direct(queries)
+  format.query.direct(results, title)
 }
 
 # TODO
 # - join supplied title/year info to query results
-# --- needs special handling for 0-row non matches
 # - make.query.direct should pass down opts to title and year query fns
 # - make sure the AWS can handle {stringdist} installation
 
