@@ -23,7 +23,7 @@ ui <- dashboardPage(
                     ),
                     dashboardBody(
                       #testing
-                      tags$head(includeHTML(("google_analytics.html"))),
+                      # tags$head(includeHTML(("google_analytics.html"))),
                       # CSS
                       tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "snowglobe.css")),
                       # Navigation prompt

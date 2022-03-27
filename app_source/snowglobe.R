@@ -138,7 +138,7 @@ format.query.direct <- function(results, title) {
   })
   results[n_matches == 0] <- list(PAPER_INFO.template)
   cleaned <- bind_rows(results)
-  names(cleaned) <- c("ID", "Title", "Year", "Pub_type", "DOI")
+  colnames(cleaned) <- c("ID", "Title", "Year", "Pub_type", "DOI")
   cleaned$ID <- as.numeric(cleaned$ID)
   as_tibble(cleaned)
 }
@@ -231,10 +231,6 @@ fill.template.row <- function(row){
     pubmed.search(row[["PMCID"]], type = "pmc") %!Id%
     row
   
-}
-
-fill.template.row2 <- function(row){
-  title.query(row[["Title"]])
 }
 
 # vectorized formatting function

@@ -29,9 +29,7 @@ server <- function(input, output, session) {
     content = function(file) {
       write_csv(tibble(
         Title = character(),
-        DOI = character(),
-        PMID = numeric(),
-        PMCID = numeric()
+        Year = integer()
       ), file)
     }
   )
@@ -40,7 +38,7 @@ server <- function(input, output, session) {
   uploaded_running_list_template <- reactive({
     if(is.null(input$RunningListTemplate)) return (NULL)
     if(file.exists(input$RunningListTemplate$datapath)){
-      read_csv(input$RunningListTemplate$datapath, col_types = 'ccnn')
+      read_csv(input$RunningListTemplate$datapath, col_types = 'ci')
     }
   })
   
@@ -49,7 +47,7 @@ server <- function(input, output, session) {
   # processes uploaded template
   observeEvent(input$RunningListTemplate, {
     if (!is.null(uploaded_running_list_template())) {
-      if (identical(colnames(uploaded_running_list_template()), c("Title", "DOI", "PMID", "PMCID"))) {
+      if (identical(colnames(uploaded_running_list_template()), c("Title", "Year"))) {
         uploaded_running_list <- uploaded_running_list_template()
         n_uploaded <- nrow(uploaded_running_list)
         
@@ -383,8 +381,7 @@ server <- function(input, output, session) {
     content = function(file) {
       write_csv(tibble(
         Title = character(),
-        DOI = character(),
-        Year = numeric()
+        Year = integer()
       ), file)
     }
   )
@@ -392,7 +389,7 @@ server <- function(input, output, session) {
   # upload file to stage
   staging_file <- reactive({
     if(!is.null(input$FileToStage) && file.exists(input$FileToStage$datapath)) {
-      read_csv(input$FileToStage$datapath, col_types = 'ccn')
+      read_csv(input$FileToStage$datapath, col_types = 'ci')
     }
   })
   
@@ -407,44 +404,37 @@ server <- function(input, output, session) {
       
       n_staged <- nrow(staging_file())
       
-      result <- map(
-        1L:n_staged,
-        ~ {
-          
-          update_modal_progress(
-            value = .x / n_staged,
-            text = glue("Looking up and staging {n_staged} paper(s) from template...
-                      {.x}/{n_staged} ({round(.x / n_staged, 2)*100}%)")
-          )
-          
-          safely(fill.template.row, otherwise = staging_file()[.x,])(staging_file()[.x,])
-          
-        }
-      )
+      queries <- make.query.direct(staging_file()$Title, staging_file()$Year)
       
+      result_list <- map(seq_len(n_staged), ~{
+        
+        update_modal_progress(
+          value = .x / n_staged,
+          text = glue("Looking up and staging {n_staged} paper(s) from template...
+                      {.x}/{n_staged} ({round(.x / n_staged, 2)*100}%)")
+        )
+        
+        out <- send.query.direct(queries[.x])
+        
+      })
       
       update_modal_progress(value = 1, text = "Formatting...")
       
-      errors <- map(result, 2L)
-      result <- bind_rows(map(result, 1L))
+      result <- format.query.direct(result_list, staging_file()$Title)
+      result$References <- map_int(result$ID, ~ nrow(backward.search(.x)))
+      result$Citations <- map_int(result$ID, ~ nrow(forward.search(.x)))
       
-      if (any(!map_lgl(errors, is.null))) browser()
-      
-      missing_rows <- which(is.na(result$Id))
-      staged_dups <- sum(table(result$Id) > 1)
+      missing_rows <- which(is.na(result$ID))
+      staged_dups <- sum(table(result$ID) > 1)
       
       result <- result %>% 
-        filter(!is.na(Id)) %>% 
-        distinct(Id, .keep_all = TRUE)
-      
-      result <- possibly_null(format.tidy, filter(result, !is.na(Id))) %||% bind_cols(staging_file(), ID = NA)
+        filter(!is.na(ID)) %>% 
+        distinct(ID, .keep_all = TRUE)
       
       attr(result, "missing_rows") <- missing_rows
       attr(result, "staged_dups") <- staged_dups
       
       remove_modal_progress()
-      
-      
       
       time_mark <- Sys.time() - time_mark
       
@@ -523,7 +513,7 @@ server <- function(input, output, session) {
     
     showModal(modalDialog(
       title = "Complete!",
-      HTML(glue("{nrow(dup_removed)} papers will be staged after removing
+      HTML(glue("{nrow(dup_removed)} paper(s) will be staged after removing
                 {length(dups) + attr(staged_file_searched(), 'staged_dups')} duplicates.<br>
                 Click on a row to individually remove a paper from the staging area.<br><br>
                 Proceed to the <strong>Run Search</strong> tab after reviewing your staged papers.")),
@@ -631,35 +621,20 @@ server <- function(input, output, session) {
     
     # paper info
     
-    show_modal_progress_line(text = glue("Looking up information about {length(new())} discovered paper(s)..."))
+    n_new <- length(new())
     
-    result <- imap(
-      new(),
-      ~{
-        update_modal_progress(
-          value = .y / length(new()),
-          text = glue("Looking up information about {length(new())} discovered paper(s)...  
-                       {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-        )
-        safely(scrape, otherwise = tibble(ID = .x))(.x)
-      })
+    show_modal_progress_line(text = glue("Fetching {n_new} discovered paper(s)..."))
     
-    
+    result <- fast.scrape(new())
     
     update_modal_progress(value = 1, text = "Formatting...")
     
-    errors <- map(result, 2L)
-    result <- format.tidy(bind_rows(map(result, 1L)))
-    
-    if (any(!map_lgl(errors, is.null))) browser()
-    
+    colnames(result) <- c("ID", "Title", "Year", "Pub_type", "DOI")
     
     remove_modal_progress()
     
-    
-    # fetch abstract
-    
-    if(input$GetAbstracts){
+    # fetch abstract (NO LONGER SUPPORTED)
+    if(FALSE && input$GetAbstracts){
       
       show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} discovered paper(s)..."),
                                color = "#D7AA2D")
@@ -782,7 +757,7 @@ server <- function(input, output, session) {
     datatable(
       final_output() %>%
         select(-Date, -Searched_from) %>% 
-        relocate(Density, Connections, .after = References),
+        relocate(Density, Connections, .after = last_col()),
       selection = list(mode = "single", target = 'cell'),
       extensions = c('Responsive', 'FixedHeader'),
       options = list(buttons = c('copy', 'csv', 'excel', 'print'),
