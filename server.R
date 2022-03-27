@@ -770,14 +770,15 @@ server <- function(input, output, session) {
     
     if (nrow(input$OutputTable_cells_selected) == 1 && !is.na(input$OutputTable_cells_selected[1,2])) {
       
-      if (input$OutputTable_cells_selected[1,2] == 1) {
-        showModal(modalDialog(
-          h4(strong("Open this paper's page on the Microsoft Academic database in a new window?")),
-          footer = actionButton("NavigateMAG", "Proceed"), easyClose = TRUE
-        ))
-      }
+      # DISABLED MA redirect
+      # if (input$OutputTable_cells_selected[1,2] == 1) {
+      #   showModal(modalDialog(
+      #     h4(strong("Open this paper's page on the Microsoft Academic database in a new window?")),
+      #     footer = actionButton("NavigateMAG", "Proceed"), easyClose = TRUE
+      #   ))
+      # }
       
-      if (input$OutputTable_cells_selected[1,2] == 7) {
+      if (input$OutputTable_cells_selected[1,2] == 5) {
         showModal(modalDialog(
           h4(strong("Open this paper's DOI link in a new window?")),
           footer = actionButton("NavigateDOI", "Proceed"), easyClose = TRUE
@@ -787,14 +788,14 @@ server <- function(input, output, session) {
     }
   })
   
-  # Navigate to MAG
-  observeEvent(input$NavigateMAG, {
-    browseURL(paste0(
-      "https://academic.microsoft.com/paper/",
-      final_output()$ID[input$OutputTable_cells_selected[1,1]]
-    ))
-    removeModal()
-  })
+  # DISABLED Navigate to MAG
+  # observeEvent(input$NavigateMAG, {
+  #   browseURL(paste0(
+  #     "https://academic.microsoft.com/paper/",
+  #     final_output()$ID[input$OutputTable_cells_selected[1,1]]
+  #   ))
+  #   removeModal()
+  # })
   
   # Navigate to DOI
   observeEvent(input$NavigateDOI, {
