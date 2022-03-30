@@ -50,7 +50,7 @@ ui <- dashboardPage(
                                 fluidRow(
                                   box(width = 12,
                                       h3(strong("Papers to Search"), align = "center"),
-                                      div(actionButton("StageFromFile", "Upload List of Titles/DOI/PMID"),
+                                      div(actionButton("StageFromFile", "Upload List of Titles and Years"),
                                           style = "float:right"), br(), 
                                       dataTableOutput("StagedTable"), br(),
                                       downloadButton("DownloadStaged",
@@ -69,12 +69,12 @@ ui <- dashboardPage(
                                 #                    label = "Push to Staging Area")
                                 #   )
                                 # )
-                                fluidRow(
-                                  box(width = 12,
-                                      h3(strong("Search options"), align = "center"),
-                                      checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE)
-                                  )
-                                )
+                                # fluidRow(
+                                #   box(width = 12,
+                                #       h3(strong("Search options"), align = "center"),
+                                #       checkboxInput("GetAbstracts", "Fetch Abstracts", FALSE)
+                                #   )
+                                # )
                                 
                         ),
                         tabItem(tabName = "RunTab",
