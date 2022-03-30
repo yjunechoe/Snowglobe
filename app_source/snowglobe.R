@@ -99,13 +99,12 @@ make.title.query <- function(title) {
 }
 
 make.year.query <- function(year, fuzzy = 3L) {
-  if (!is.na(year) && is.numeric(year)) {
-    year <- as.integer(year)
-    paste0("AND Year BETWEEN ", year - fuzzy, " AND ", year + fuzzy,
-           " ORDER BY ABS(YEAR - ", year, ")")
-  } else {
+  year <- as.integer(year)
+  ifelse(
+    !is.na(year),
+    paste0("AND Year BETWEEN ", year - fuzzy, " AND ", year + fuzzy, " ORDER BY ABS(YEAR - ", year, ")"),
     ""
-  }
+  )
 }
 
 # New db query functions
