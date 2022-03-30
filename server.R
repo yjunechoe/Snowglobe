@@ -445,9 +445,7 @@ server <- function(input, output, session) {
         HTML(glue('<b>After you finish reviewing missing papers and warnings, PRESS THE "CONFIRM" BUTTON BELOW to
                   push the uploaded papers to the staging area.</b><br><br>')),
         h4(strong("High Density Papers"), align = "center"),
-        HTML("Over 1000 connections (citations + references) were found for these papers.
-             <br>Including this paper in the search will make the search take a while.
-             <br>Make sure that you really do intend to snowball this paper! <br>"),
+        HTML("Over 1000 connections (citations + references) were found for these papers."),
         dataTableOutput("HighDensity"),
         h4(strong("Papers Without Connections"), align = "center"),
         HTML("There are no connections (citations + references) found for these papers.
@@ -455,9 +453,7 @@ server <- function(input, output, session) {
              <br>You should search these papers' references by hand. <br>"),
         dataTableOutput("LowDensity"),
         h4(strong("Missing Papers"), align = "center"),
-        HTML(glue('{sum(is.na(result$ID))} of the {nrow(result)} papers could not be found in the database and cannot be be staged.
-                  <br>Try manually searching for the missing papers on {a("Microsoft Academic", href="https://academic.microsoft.com/home")}.
-                  <br>If you find the page for the paper, add it to your list of titles verbatim.<br><br>')),
+        HTML(glue('{sum(is.na(result$ID))} of the {nrow(result)} papers could not be found in the database and cannot be be staged.')),
         dataTableOutput("StagedMissing"),
         div(actionButton("PushBulk", "Confirm"), style = "float:right"),
         footer = NULL, easyClose = TRUE)
