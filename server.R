@@ -719,27 +719,18 @@ server <- function(input, output, session) {
   #RIS Formatting
   RIS_output <- reactive({
     x <- comprehensive_output()
-    x <- x %>% select(Pub_type, Title, Year, Authors, ID, Journal, DOI)
-    colnames(x) <- c("TY", "TI", "PY", "AU", "ID", "JF", "DO")
+    x <- x %>% select(Pub_type, Title, Year, DOI)
+    colnames(x) <- c("TY", "TI", "PY", "DO")
     x$TY <- ifelse(x$TY == "", "Unknown", x$TY) 
     x$PY <- as.character(x$PY)
-    x$ID <- as.character(x$ID)
-    x$AU <- str_to_title(x$AU)
-    x$JF <- str_to_title(x$JF)
-    
-    z <- data.frame(str_split(x$AU, pattern = ",", simplify = T))
-    au_vars <- paste0("AU", seq(1,ncol(z)))
-    names(z) <- au_vars
-    x <- cbind(x,z)
     x$ER <- "zyxw"
     
     ris <- pivot_longer(x, TY:ER, names_to = "var")
-    ris$var <- str_replace(ris$var, pattern = regex("AU.*"), "AU")
     ris <- ris %>% filter(!value == "")
-    ris$var <- ifelse(ris$var == "AU" & str_detect(ris$value, ","), "xx", ris$var)
     ris <- ris %>% filter(!var == "xx")
     ris$value <- str_replace(ris$value, pattern = "zyxw", "")
-    paste0(ris$var, " - ", ris$value)
+    ris_final <- paste0(ris$var, " - ", ris$value)
+    return(ris_final)
   })
   
   
