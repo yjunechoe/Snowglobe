@@ -4,10 +4,8 @@ SnowGlobe is a program that assists with literature searching, using a technique
 
 Proceed to the **Prepare Search** Tab to enter the papers you'd like to search (and the papers you have already searched, if applicable).
 
-Demos for [basic searching](https://youtu.be/WQ_rwvMXFdU) and [the running list feature](https://youtu.be/VsNZ1QyaCGo) are available on YouTube.
+**NOTE: The formatting for our searches has changed in accordance with the end of Microsoft Academic's life-cycle. Please download the latest templates, which contain two columns: Title and Year.**
 
 Please cite us with the following information: 
 
 McWeeny, S., Choe, J., & Norton, E. (2021). SnowGlobe: An Iterative Search Tool for Systematic Reviews and Meta-Analyses. https://doi.org/10.17605/OSF.IO/U25RN
-
-**NOTE: We are temporarily experiencing an outage due to the termination of Microsoft Academic. We are working to have these issues resolved and apologize for the inconvenience. We are hoping to have a DOI-based version up by mid-March. Please reach out by email if you need assistance**
