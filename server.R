@@ -630,61 +630,57 @@ server <- function(input, output, session) {
     remove_modal_progress()
     
     # fetch abstract (NO LONGER SUPPORTED)
-    if(FALSE && input$GetAbstracts){
-      
-      show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} discovered paper(s)..."),
-                               color = "#D7AA2D")
-      
-      # MAG search
-      result <- result %>% 
-        mutate(
-          Abstract = imap_chr(
-            1:nrow(result),
-            ~{
-              update_modal_progress(
-                value = .y / length(new()),
-                text = glue("Fetching abstracts of {length(new())} discovered paper(s)...  
-                             {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
-              )
-              abst <- scrape.abst.ID(result$ID[.x])
-              if (is.na(abst) && !is.na(result$DOI[.x])) {
-                DOI <- result$DOI[.x]
-                abst <- scrape.abst.DOI(DOI, "semanticscholar") %||%
-                  scrape.abst.DOI(DOI, "plos") %||%
-                  scrape.abst.DOI(DOI, "crossref") %||%
-                  scrape.abst.DOI(DOI, "scopus") %||%
-                  NA
-              }
-              abst
-            })
-        )
-      
-      remove_modal_progress()
-      
-      
-      missing <- which(!is.na(result$DOI) & (is.na(result$Abstract) | str_detect(result$Abstract, "[.]{3}$")))
-      
-    }
+    # commented out because only removing the UI part caused an error in searching - also deleted some text that called GetAbstracts
     
-    
+    # if(FALSE && input$GetAbstracts){
+    # 
+    #   show_modal_progress_line(text = glue("Fetching abstracts of {length(new())} discovered paper(s)..."),
+    #                            color = "#D7AA2D")
+    # 
+    #   # MAG search
+    #   result <- result %>%
+    #     mutate(
+    #       Abstract = imap_chr(
+    #         1:nrow(result),
+    #         ~{
+    #           update_modal_progress(
+    #             value = .y / length(new()),
+    #             text = glue("Fetching abstracts of {length(new())} discovered paper(s)...
+    #                          {.y}/{length(new())} ({round(.y / length(new()), 2)*100}%)")
+    #           )
+    #           abst <- scrape.abst.ID(result$ID[.x])
+    #           if (is.na(abst) && !is.na(result$DOI[.x])) {
+    #             DOI <- result$DOI[.x]
+    #             abst <- scrape.abst.DOI(DOI, "semanticscholar") %||%
+    #               scrape.abst.DOI(DOI, "plos") %||%
+    #               scrape.abst.DOI(DOI, "crossref") %||%
+    #               scrape.abst.DOI(DOI, "scopus") %||%
+    #               NA
+    #           }
+    #           abst
+    #         })
+    #     )
+    # 
+    #   remove_modal_progress()
+    # 
+    # 
+    #   missing <- which(!is.na(result$DOI) & (is.na(result$Abstract) | str_detect(result$Abstract, "[.]{3}$")))
+    # 
+    # }
+
+
     time_mark <- Sys.time() - time_mark
-    
+
     showModal(modalDialog(
       title = strong(glue("Search Complete - {round(time_mark[[1]], 2)} {units(time_mark)}")),
       HTML(glue('Input: {nrow(data$staged)} papers. <br>
-                Output: {nrow(result)} papers. <br>
-                Abstracts Failed to Fetch: {ifelse(input$GetAbstracts, sum(is.na(result$Abstract)), "Not Searched")} 
-                {if(input$GetAbstracts){
-                paste0(" (", round(nrow(filter(result, Pub_type == "Journal" & is.na(Abstract)))/
-                nrow(filter(result, Pub_type == pub.key(1))), 2),
-                "% of Journal Articles)")
-                }}')),
+                Output: {nrow(result)} papers. <br>')),
       footer = NULL, easyClose = TRUE))
-    
+
     return(result)
-    
+
   })
-  
+
   
   
   ### Search summary dialogue ###
