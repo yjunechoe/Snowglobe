@@ -729,7 +729,7 @@ server <- function(input, output, session) {
     ris <- ris %>% filter(!value == "")
     ris <- ris %>% filter(!var == "xx")
     ris$value <- str_replace(ris$value, pattern = "zyxw", "")
-    ris_final <- paste0(ris$var, " - ", ris$value)
+    ris_final <- paste0(ris$var, "  - ", ris$value)
     return(ris_final)
   })
   
