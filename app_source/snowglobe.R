@@ -86,10 +86,10 @@ title.strip <- function(title){
 
 make.title.query <- function(title) {
   # strip diacritics
-  title_stripped <- str_to_lower(str_squish(str_replace_all(title, "[^[:alpha:]\\s]", " ")))
-  titles_latin <- stringi::stri_trans_general(title_stripped, "Latin-ASCII")
-  keywords <- vapply(titles_latin, function(x) {
-    title_words <- str_split(x, "\\s+")[[1]]
+  titles_latin <- stringi::stri_trans_general(title, "Latin-ASCII")
+  titles_nopunct <- stringi::stri_replace_all_regex(titles_latin, "[:punct:]", " ")
+  titles_wordlist <- stringi::stri_split_boundaries(titles_nopunct, type = "word", skip_word_none = TRUE, skip_word_number = TRUE)
+  keywords <- vapply(titles_wordlist, function(title_words) {
     title_content_words <- unique(title_words[!(title_words %in% stopwords) & nchar(title_words) > 3])
     # Phrase chunking step
     title_keywords <- get_word_freqs(title_content_words)
